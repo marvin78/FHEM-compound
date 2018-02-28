@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.29";
+my $version = "0.9.4.0";
 
 my %gets = (
   "version:noArg"     => "",
@@ -420,7 +420,7 @@ sub compound_SetPlan($) {
       my @planArr;
       foreach (@plans) {
          my @mon = split(/ /,$_,2);
-         $planArr[$mon[0]] = $mon[1];
+         $planArr[int($mon[0])] = $mon[1];
       }
       
       for(my $i=1;$i<=12;$i++) {
