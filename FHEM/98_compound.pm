@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.4.1";
+my $version = "0.9.4.2";
 
 my %gets = (
   "version:noArg"     => "",
@@ -717,6 +717,9 @@ sub compound_checkTemp($$;$) {
         
         #Log3 $name, 5, "$name: Check temperature for device $dev with temperature $temp" if (defined($temp));
         
+        my $cmd1=$hash->{helper}{$compound}{"TYPES"}{$dev} ne "cool"?"on":"off";
+        my $cmd2=$hash->{helper}{$compound}{"TYPES"}{$dev} ne "cool"?"off":"on";
+        
         my $tPlan=$hash->{helper}{plan}{$compound}{$dev}{$month+1};
         
         if ($tPlan ne "-") {
@@ -740,9 +743,6 @@ sub compound_checkTemp($$;$) {
                   Log3 $name, 5, "$name: Check temperature for device $dev and tempDevice $tempDev with given temperature $temp and $d[1] and $refTime and $aPlanTime" if (defined($temp));
                   
                   my $manu=ReadingsVal($name,$dev."_manu","off");
-                  
-                  my $cmd1=$hash->{helper}{$compound}{"TYPES"}{$dev} ne "cool"?"on":"off";
-                  my $cmd2=$hash->{helper}{$compound}{"TYPES"}{$dev} ne "cool"?"off":"on";
                   
                   if (!defined($d[1])) {
                     $d[1] = 1000;
@@ -773,6 +773,10 @@ sub compound_checkTemp($$;$) {
               @oldTime = @planTime;
             }
           }
+        }
+        else {
+          CommandSet(undef,"$dev $cmd2");
+          readingsSingleUpdate($hash,$dev."_timer",'none',1);
         }
       }
       Log3 $name, 4, "$name: Check for time and temperature";
@@ -1005,10 +1009,10 @@ sub compound_PlanHtml(;$$$) {
         
         for(my $i=1;$i<=12;$i++) {
           if ($i%2==0 || $i==0) {
-            $eo="odd";
+            $eo="even";
           }
           else {
-            $eo="even";
+            $eo="odd";
           }
           $num = $i;
           $month=$sM->{$num};
@@ -1310,3 +1314,14 @@ sub compound_abstime2rel($) {
 }
 
 1;
+
+=pod
+=item device
+=item summary    manage your compound lights and heatings 
+=item summary_DE Verwaltung für Gehege-Technik
+=begin html
+
+<a name="compound"></a>
+<h3compound</h3>
+<ul>
+</ul>
