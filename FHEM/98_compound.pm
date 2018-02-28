@@ -9,20 +9,87 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.4.0";
+my $version = "0.9.4.1";
 
 my %gets = (
   "version:noArg"     => "",
   #"status:noArg"     => "",
 ); 
 
+## define variables for multi language
+my %compound_transtable_EN = ( 
+  "month"             =>  "Month",
+  "light"             =>  "Light",
+  "heating"           =>  "Heating",
+  "camera"            =>  "Camera",
+  "cooling"           =>  "Cooling",
+  "schedule"          =>  "Schedule",
+  "overview"          =>  "Overview",
+  "animals"           =>  "Animals",
+  "state"             =>  "State",
+  "place"             =>  "Place",
+  "temp"              =>  "Temp",
+  "hum"               =>  "Hum",
+  "attention"         =>  "Attention",
+  "deviceaccplan"     =>  "Device acts according to configured schedule now",
+);
 
+my %compound_transtable_DE = ( 
+  "month"             =>  "Monat",
+  "light"             =>  "Licht",
+  "heating"           =>  "Heizung",
+  "camera"            =>  "Kamera",
+  "cooling"           =>  "Kühlung",
+  "schedule"          =>  "Zeitplan",
+  "overview"          =>  "Übersicht",
+  "animals"           =>  "Tiere",
+  "state"             =>  "Status",
+  "place"             =>  "Ort",
+  "temp"              =>  "Temp",
+  "hum"               =>  "Feuchte",
+  "attention"         =>  "Achtung",
+  "deviceaccplan"     =>  "Gerät arbeitet ab sofort nach konfiguriertem Zeitplan",
+);
+
+my %compound_month_EN = ( 
+  "1"             =>  "Jan",
+  "2"             =>  "Feb",
+  "3"             =>  "Mar",
+  "4"             =>  "Apr",
+  "5"             =>  "Mai",
+  "6"             =>  "Jun",
+  "7"             =>  "Jul",
+  "8"             =>  "Aug",
+  "9"             =>  "Sep",
+  "10"            =>  "Oct",
+  "11"            =>  "Nov",
+  "12"            =>  "Dec",  
+);
+
+my %compound_month_DE = ( 
+  "1"             =>  "Jan",
+  "2"             =>  "Feb",
+  "3"             =>  "März",
+  "4"             =>  "Apr",
+  "5"             =>  "Mai",
+  "6"             =>  "Jun",
+  "7"             =>  "Jul",
+  "8"             =>  "Aug",
+  "9"             =>  "Sep",
+  "10"            =>  "Okt",
+  "11"            =>  "Nov",
+  "12"            =>  "Dez",  
+);
+
+my $compound_tt;
+my $compound_month;
 
 sub compound_checkTemp($$;$);
 sub compound_setOff($$);
 
 sub compound_Initialize($) { 
   my ($hash) = @_;
+  my $name = $hash->{NAME}; 
 
   $hash->{SetFn}        = "compound_Set";
   $hash->{GetFn}        = "compound_Get";
@@ -37,7 +104,21 @@ sub compound_Initialize($) {
                           "hysterese ".
                           "interval ".
                           "showDetailWidget:1,0 ".
+                          "language:EN,DE ".
                           $readingFnAttributes;
+                          
+  if( !defined($compound_tt) ){
+    # in any attribute redefinition readjust language
+    my $lang = AttrVal($name,"language", AttrVal("global","language","EN"));
+    if( $lang eq "DE") {
+      $compound_tt = \%compound_transtable_DE;
+      $compound_month = \%compound_month_DE;
+    }
+    else{
+      $compound_tt = \%compound_transtable_EN;
+      $compound_month = \%compound_month_EN;
+    }
+  }
   
   return undef;
 } 
@@ -50,6 +131,19 @@ sub compound_Define($$) {
   my @compounds;
   my @devices;
   my @tdevices;
+  
+  if( !defined($compound_tt) ){
+    # in any attribute redefinition readjust language
+    my $lang = AttrVal($name,"language", AttrVal("global","language","EN"));
+    if( $lang eq "DE") {
+      $compound_tt = \%compound_transtable_DE;
+      $compound_month = \%compound_month_DE;
+    }
+    else{
+      $compound_tt = \%compound_transtable_EN;
+      $compound_month = \%compound_month_EN;
+    }
+  }
   
   
   my @a = split( "[ \t][ \t]*", $def );
@@ -296,6 +390,24 @@ sub compound_Attr(@) {
     compound_RestartGetTimer($hash);
   }
   
+  if ($attrName eq "language") {
+    # in any attribute redefinition readjust language
+    if ($cmd eq "set") {
+      return "compound ($name): language can only be DE or EN" if ($attrVal !~ /(^DE|EN)$/);
+      if( $attrVal eq "DE") {
+        $compound_tt = \%compound_transtable_DE;
+        $compound_month = \%compound_month_DE;
+      }
+      else{
+        $compound_tt = \%compound_transtable_EN;
+        $compound_month = \%compound_month_EN;
+      }
+    }
+    else {
+      $compound_tt = \%compound_transtable_EN;
+      $compound_month = \%compound_month_EN;
+    }
+  }
 
   return undef;
 }
@@ -552,7 +664,7 @@ sub compound_setOff($$){
   
   InternalTimer(gettimeofday()+2, "compound_doCheckTemp", $hash, 0);
   
-  map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_ErrorDialog === \"function\") compound_ErrorDialog('$name','Device acts according to plan now','Attention!')", "")} devspec2array("TYPE=FHEMWEB");
+  map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_ErrorDialog === \"function\") compound_ErrorDialog('$name','".$compound_tt->{"deviceaccplan"}."','".$compound_tt->{"attention"}."!')", "")} devspec2array("TYPE=FHEMWEB");
   
   return undef;
 }
@@ -798,22 +910,7 @@ sub compound_PlanHtml(;$$$) {
   my $ret="";
   my $rot="";
   
-  my %compoundMonth = ( 
-    "1"             =>  "Jan",
-    "2"             =>  "Feb",
-    "3"             =>  "März",
-    "4"             =>  "Apr",
-    "5"             =>  "Mai",
-    "6"             =>  "Jun",
-    "7"             =>  "Jul",
-    "8"             =>  "Aug",
-    "9"             =>  "Sep",
-    "10"             =>  "Okt",
-    "11"             =>  "Nov",
-    "12"             =>  "Dez",  
-  );
-  
-  my $sM = \%compoundMonth;
+  my $sM = $compound_month;
   
   # refresh request? don't show everything
   if (!$refreshGet) {
@@ -880,7 +977,7 @@ sub compound_PlanHtml(;$$$) {
           
         $ret .= "<tr class=\"devTypeTr\"><td colspan=\"3\">\n".
                 " <div class=\"compound_devType col_header\">\n".
-                    "Planung: ".(!$FW_hiddenroom{detail}?"<a title=\"\" href=\"/fhem?detail=".$name."\">":"").
+                    $compound_tt->{"schedule"}.": ".(!$FW_hiddenroom{detail}?"<a title=\"\" href=\"/fhem?detail=".$name."\">":"").
                       AttrVal($name,"alias",$name).
                     (!$FW_hiddenroom{detail}?"</a>":"").
                     " - ".$compound.
@@ -891,11 +988,11 @@ sub compound_PlanHtml(;$$$) {
       
         $ret .= "<thead id=\"compound_head_th\">\n".
                 " <tr>\n".
-                "   <th class=\"col1\">Monat</th>\n".
-                ($lightDev?"  <th class=\"col3\" colspan=\"2\">Licht</th>\n":"").
-                ($heatDev?"   <th class=\"col3\" colspan=\"2\">Heizung</th>\n":"").
-                ($camDev?"  <th class=\"col3\" colspan=\"2\">Camera</th>\n":"").
-                ($coolDev?"   <th class=\"col3\" colspan=\"2\">Kühlung</th>\n":"").
+                "   <th class=\"col1\">".$compound_tt->{"month"}."</th>\n".
+                ($lightDev?"  <th class=\"col3\" colspan=\"2\">".$compound_tt->{"light"}."</th>\n":"").
+                ($heatDev?"   <th class=\"col3\" colspan=\"2\">".$compound_tt->{"heating"}."</th>\n":"").
+                ($camDev?"  <th class=\"col3\" colspan=\"2\">".$compound_tt->{"camera"}."</th>\n":"").
+                ($coolDev?"   <th class=\"col3\" colspan=\"2\">".$compound_tt->{"cooling"}."</th>\n":"").
                 " </tr>".
                 "</thead>\n";
       
@@ -985,6 +1082,9 @@ sub compound_Html(;$$$) {
   
   # refresh request? don't show everything
   if (!$refreshGet) {
+   $rot .= " <script type=\"text/javascript\">
+              compound_tt={};
+            </script>";
     # Javascript
     $rot .= "<script type=\"text/javascript\" src=\"$FW_ME/www/pgm2/compound.js?version=".$version."\"></script>
                 <style>
@@ -1032,7 +1132,7 @@ sub compound_Html(;$$$) {
       
     $ret .= "<tr class=\"devTypeTr\"><td colspan=\"3\">\n".
             " <div class=\"compound_devType col_header\">\n".
-            "   Status".
+            "   ".$compound_tt->{"overview"}.
             " </div>".
             "</td></tr>";
     $ret .= "<tr><td colspan=\"3\">\n";
@@ -1040,14 +1140,14 @@ sub compound_Html(;$$$) {
   
     $ret .= "<thead id=\"compound_head_th\">\n".
             " <tr>\n".
-            "   <th class=\"col1\">Tiere</th>\n".
-            "   <th class=\"col3\">Status</th>\n".
-            "   <th class=\"col3\">Ort</th>\n".
-            "   <th class=\"col3\">Licht</th>\n".
-            "   <th class=\"col3\">Heizung</th>\n".
-            "   <th class=\"col3\">Cam</th>\n".
-            "   <th class=\"col3\">Temp</th>\n".
-            "   <th class=\"col3\">Hum</th>\n".
+            "   <th class=\"col1\">".$compound_tt->{"animals"}."</th>\n".
+            "   <th class=\"col3\">".$compound_tt->{"light"}."</th>\n".
+            "   <th class=\"col3\">".$compound_tt->{"place"}."</th>\n".
+            "   <th class=\"col3\">".$compound_tt->{"light"}."</th>\n".
+            "   <th class=\"col3\">".$compound_tt->{"heating"}."</th>\n".
+            "   <th class=\"col3\">".$compound_tt->{"camera"}."</th>\n".
+            "   <th class=\"col3\">".$compound_tt->{"temp"}."</th>\n".
+            "   <th class=\"col3\">".$compound_tt->{"hum"}."</th>\n".
             " </tr>".
             "</thead>\n";
   }
