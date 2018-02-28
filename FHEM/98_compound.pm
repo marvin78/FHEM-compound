@@ -33,11 +33,11 @@ sub compound_Initialize($) {
   
   $hash->{FW_detailFn}  = "compound_detailFn";
   
-  $hash->{AttrList} = "disable:1,0 ".
-                      "hysterese ".
-                      "interval ".
-                      "showDetailWidget:1,0 ".
-                      $readingFnAttributes;
+  $hash->{AttrList}     = "disable:1,0 ".
+                          "hysterese ".
+                          "interval ".
+                          "showDetailWidget:1,0 ".
+                          $readingFnAttributes;
   
   return undef;
 } 
