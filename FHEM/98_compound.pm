@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.28";
+my $version = "0.9.29";
 
 my %gets = (
   "version:noArg"     => "",
@@ -605,7 +605,7 @@ sub compound_checkTemp($$;$) {
         
         #Log3 $name, 5, "$name: Check temperature for device $dev with temperature $temp" if (defined($temp));
         
-        my $tPlan=$hash->{helper}{plan}{$compound}{$dev}{$month};
+        my $tPlan=$hash->{helper}{plan}{$compound}{$dev}{$month+1};
         
         if ($tPlan ne "-") {
           my @plans = split(/ /, $tPlan );
