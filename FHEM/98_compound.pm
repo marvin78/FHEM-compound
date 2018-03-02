@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.4.4";
+my $version = "0.9.4.5";
 
 my %gets = (
   "version:noArg"     => "",
@@ -911,7 +911,7 @@ sub compound_detailFn(){
   return undef if (IsDisabled($name) || AttrVal($name,"showDetailWidget",1)!=1);
   
   #return compound_Html($name,undef,1).compound_PlanHtml($name,undef,1);
-  return compound_Html($name,undef,1);
+  return "<div style=\"float:left;\">".compound_Html($name,undef,1)."</div><div>".compound_PlanHtml($name,undef,1)."</div>";
 }
 
 sub compound_PlanHtml(;$$$) {
@@ -977,6 +977,7 @@ sub compound_PlanHtml(;$$$) {
                   }
                   td.doDown {
                     cursor:pointer;
+                    padding-right:10px;
                   }
                 </style>";
   }
