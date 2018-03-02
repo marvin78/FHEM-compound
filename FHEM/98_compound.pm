@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.4.8";
+my $version = "0.9.4.9";
 
 my %gets = (
   "version:noArg"     => "",
@@ -976,7 +976,7 @@ sub compound_PlanHtml(;$$$) {
                     //width:220px;
                   }
                   tr.compound_plan td {
-                    height:20px;
+                    height:22px;
                   }
                   td.doDown {
                     cursor:pointer;
