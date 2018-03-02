@@ -911,7 +911,7 @@ sub compound_detailFn(){
   return undef if (IsDisabled($name) || AttrVal($name,"showDetailWidget",1)!=1);
   
   #return compound_Html($name,undef,1).compound_PlanHtml($name,undef,1);
-  return "<div style=\"float:left;\">".compound_Html($name,undef,1)."</div><div>".compound_PlanHtml($name,undef,1)."</div>";
+  return compound_Html($name,undef,1).compound_PlanHtml($name,undef,1);
 }
 
 sub compound_PlanHtml(;$$$) {
