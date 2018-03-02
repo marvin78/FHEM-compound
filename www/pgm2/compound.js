@@ -125,9 +125,9 @@
         var tid = $(this).attr("data-tid");
         $('div.compound_plan_outer_container').on('click','span.compound_plan_text_' + name + '[data-tid="' + tid + '"]',function(e) {
           var val=$(this).html();
-          var width=$(this).width()+20;
+          var width=$(this).width()+5;
           $(this).hide();
-          $("input[data-tid='" + tid +"']").show().focus().val("").val(val);
+          $("input[data-tid='" + tid +"']").show().focus().val("").val(val).width(width);
         });
       });
       $('div.compound_plan_outer_container').on('blur keypress','input.compound_plan_input_' + name,function(e) {
