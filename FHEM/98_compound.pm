@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.4.2";
+my $version = "0.9.4.4";
 
 my %gets = (
   "version:noArg"     => "",
@@ -32,6 +32,7 @@ my %compound_transtable_EN = (
   "hum"               =>  "Hum",
   "attention"         =>  "Attention",
   "deviceaccplan"     =>  "Device acts according to configured schedule now",
+  "areyousure"        =>  "Are you sure?",
 );
 
 my %compound_transtable_DE = ( 
@@ -49,6 +50,7 @@ my %compound_transtable_DE = (
   "hum"               =>  "Feuchte",
   "attention"         =>  "Achtung",
   "deviceaccplan"     =>  "Gerät arbeitet ab sofort nach konfiguriertem Zeitplan",
+  "areyousure"        =>  "Sicher?",
 );
 
 my %compound_month_EN = ( 
@@ -798,7 +800,19 @@ sub compound_setCompound($$@) {
     my @compounds=@{$hash->{COMPOUNDS}};
     
     if (compound_inArray(\@compounds,$co)) {
-  
+      
+      #my $oldC = "-";
+      #$oldC = $hash->{helper}{activeCompound} if ($hash->{helper}{activeCompound});
+      
+      # set old devices off
+      #if ($oldC ne "-" && $hash->{helper}{$oldC}{"devices"}) {
+      #  foreach (@{$hash->{helper}{$oldC}{"devices"}}) {
+      #    CommandSet(undef,"$_:FILTER=STATE!=off off");
+      #  }
+      #}
+      
+      $hash->{helper}{activeCompound}=$co;
+      
       readingsBeginUpdate($hash);
       
       readingsBulkUpdate($hash,"compound",$co);
@@ -918,6 +932,10 @@ sub compound_PlanHtml(;$$$) {
   
   # refresh request? don't show everything
   if (!$refreshGet) {
+    $rot .= " <script type=\"text/javascript\">
+                compound_tt={};
+                compound_tt.areyousure='".$compound_tt->{'areyousure'}."';
+              </script>";
     # Javascript
     $rot .= "<script type=\"text/javascript\" src=\"$FW_ME/www/pgm2/compound.js?version=".$version."\"></script>
                 <style>
@@ -1027,26 +1045,30 @@ sub compound_PlanHtml(;$$$) {
                   " <td class=\"col1 compound_col1\">\n".
                     $month.
                   " </td>\n".
-                  ($lightDev?"  <td class=\"col2 compound_plan_light\">\n".
-                  "   <input type=\"text\" data-name=\"".$lightDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_lightInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueL."\" />\n".
+                  ($lightDev?"  <td class=\"col1 compound_plan_light\">\n".
+                  "   <span class=\"compound_plan_light_text compound_plan_text_".$name."\" data-tid=\"".$lightDev."_".$i."\" data-name=\"".$lightDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueL."</span>\n".
+                  "   <input type=\"text\" style=\"display:none;\" data-tid=\"".$lightDev."_".$i."\" data-name=\"".$lightDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_lightInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueL."\" />\n".
                   " </td>\n".
                   " <td data-id=\"copy_light_".$name."\" class=\"col2 doDown light_down doDown_".$name."\">".
                   ($i==1?"↓":"&nbsp;").
                   " </td>\n":"").
-                  ($heatDev?" <td class=\"col2 compound_plan_heat\">\n".
-                  "   <input type=\"text\" data-name=\"".$heatDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_heatInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueH."\" />\n".
+                  ($heatDev?" <td class=\"col1 compound_plan_heat\">\n".
+                  "   <span class=\"compound_plan_light_text compound_plan_text_".$name."\" data-tid=\"".$heatDev."_".$i."\" data-name=\"".$heatDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueH."</span>\n".
+                  "   <input type=\"text\" style=\"display:none;\" data-tid=\"".$heatDev."_".$i."\" data-name=\"".$heatDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_heatInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueH."\" />\n".
                   " </td>\n".
                   " <td data-id=\"copy_heat_".$name."\" class=\"col2 doDown heat_down doDown_".$name."\">".
                   ($i==1?"↓":"&nbsp;").
                   " </td>\n":"").
-                  ($camDev?"  <td class=\"col2 compound_plan_cam\">\n".
-                  "   <input type=\"text\" data-name=\"".$camDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_camInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueC."\" />\n".
+                  ($camDev?"  <td class=\"col1 compound_plan_cam\">\n".
+                  "   <span class=\"compound_plan_light_text compound_plan_text_".$name."\" data-tid=\"".$camDev."_".$i."\" data-name=\"".$camDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueC."</span>\n".
+                  "   <input type=\"text\" style=\"display:none;\" data-tid=\"".$camDev."_".$i."\" data-name=\"".$camDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_camInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueC."\" />\n".
                   " </td>\n".
                   " <td data-id=\"copy_cam_".$name."\" class=\"col2 doDown cam_down doDown_".$name."\">".
                   ($i==1?"↓":"&nbsp;").
                   " </td>\n":"").
-                  ($coolDev?" <td class=\"col2 compound_plan_cool\">\n".
-                  "   <input type=\"text\" data-name=\"".$coolDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_coolInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueF."\" />\n".
+                  ($coolDev?" <td class=\"col1 compound_plan_cool\">\n".
+                  "   <span class=\"compound_plan_light_text compound_plan_text_".$name."\" data-tid=\"".$coolDev."_".$i."\" data-name=\"".$coolDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueF."</span>\n".
+                  "   <input type=\"text\" style=\"display:none;\" data-tid=\"".$coolDev."_".$i."\" data-name=\"".$coolDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_coolInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueF."\" />\n".
                   " </td>\n".
                   " <td data-id=\"copy_cool_".$name."\" class=\"col2 doDown cool_down doDown_".$name."\">".
                   ($i==1?"↓":"&nbsp;").
@@ -1086,7 +1108,7 @@ sub compound_Html(;$$$) {
   
   # refresh request? don't show everything
   if (!$refreshGet) {
-   $rot .= " <script type=\"text/javascript\">
+    $rot .= " <script type=\"text/javascript\">
               compound_tt={};
             </script>";
     # Javascript
