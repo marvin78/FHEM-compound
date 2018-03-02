@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.4.5";
+my $version = "0.9.4.6";
 
 my %gets = (
   "version:noArg"     => "",
