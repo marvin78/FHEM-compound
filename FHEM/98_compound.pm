@@ -1345,6 +1345,6 @@ sub compound_abstime2rel($) {
 =begin html
 
 <a name="compound"></a>
-<h3compound</h3>
+<h3>compound</h3>
 <ul>
 </ul>
