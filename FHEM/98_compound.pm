@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.4.9";
+my $version = "0.9.51";
 
 my %gets = (
   "version:noArg"     => "",
@@ -91,7 +91,6 @@ sub compound_setOff($$);
 
 sub compound_Initialize($) { 
   my ($hash) = @_;
-  my $name = $hash->{NAME}; 
 
   $hash->{SetFn}        = "compound_Set";
   $hash->{GetFn}        = "compound_Get";
@@ -110,15 +109,20 @@ sub compound_Initialize($) {
                           $readingFnAttributes;
                           
   if( !defined($compound_tt) ){
-    # in any attribute redefinition readjust language
-    my $lang = AttrVal($name,"language", AttrVal("global","language","EN"));
-    if( $lang eq "DE") {
-      $compound_tt = \%compound_transtable_DE;
-      $compound_month = \%compound_month_DE;
-    }
-    else{
-      $compound_tt = \%compound_transtable_EN;
-      $compound_month = \%compound_month_EN;
+    my @devs = devspec2array("TYPE=compound");
+    if (@devs) {   
+      if ($devs[0]) {
+        # in any attribute redefinition readjust language
+        my $lang = AttrVal($devs[0],"language", AttrVal("global","language","EN"));
+        if( $lang eq "DE") {
+          $compound_tt = \%compound_transtable_DE;
+          $compound_month = \%compound_month_DE;
+        }
+        else{
+          $compound_tt = \%compound_transtable_EN;
+          $compound_month = \%compound_month_EN;
+        }
+      }
     }
   }
   
@@ -464,7 +468,7 @@ sub compound_Set($@)
   return "$name is disabled. Enable it to set something." if( $cmd ne "active" && (AttrVal($name, "disable", 0 ) == 1 || ReadingsVal($name,"state","active") eq "inactive"));
   
   if ( $cmd =~ /^compound|active|inactive|.*plan|.*type?$/ || $args[0] =~ /(.*on.*|.*off.*)/) {
-    Log3 $name, 4, "$name: set cmd:$cmd arg1:$args[0] arg2:$args[1]";
+    Log3 $name, 4, "$name: set cmd:$cmd arg1:$args[0]".(defined($args[1])?" arg2:$args[1]":"");
     return "[$name] Invalid argument to set $cmd, has to be one of $compounds" if ( $cmd =~ /^compound?$/ && !compound_inArray(\@aCompounds,$args[0]) );
     if ( $cmd =~ /^compound?$/ ) {     
       compound_setCompound($hash,$name,$args[0]);
@@ -593,7 +597,7 @@ sub compound_setOn($$@) {
     
     
     readingsBeginUpdate($hash);
-    readingsBulkUpdate($hash,$dev."_state",$cmd1);
+    #readingsBulkUpdate($hash,$dev."_state",$cmd1);
     readingsBulkUpdate($hash,$dev."_manu",$cmd1);
     
     my $dHash;
@@ -606,7 +610,7 @@ sub compound_setOn($$@) {
     RemoveInternalTimer($hash);
     RemoveInternalTimer($dHash);
     
-    InternalTimer(gettimeofday()+1, "compound_doSetOn", $dHash, 0);
+    InternalTimer(gettimeofday()+0.1, "compound_doSetOn", $dHash, 0);
     
     
     if ($cmd eq "on-for-timer") {
@@ -664,7 +668,7 @@ sub compound_setOff($$){
   
   readingsSingleUpdate($hash,$dev."_manu","off",1);
   
-  InternalTimer(gettimeofday()+2, "compound_doCheckTemp", $hash, 0);
+  InternalTimer(gettimeofday()+1, "compound_doCheckTemp", $hash, 0);
   
   map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_ErrorDialog === \"function\") compound_ErrorDialog('$name','".$compound_tt->{"deviceaccplan"}."','".$compound_tt->{"attention"}."!')", "")} devspec2array("TYPE=FHEMWEB");
   
