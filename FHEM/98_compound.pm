@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.58";
+my $version = "0.9.59";
 
 my %gets = (
   "version:noArg"     => "",
@@ -1058,7 +1058,8 @@ sub compound_PlanHtml(;$$$) {
         $options .= "<option value=\"".$heatDev."\">".$compound_tt->{"heating"}."</option>\n" if ($heatDev);
         $options .= "<option value=\"".$camDev."\">".$compound_tt->{"camera"}."</option>\n" if ($camDev);
         
-        my $time = FmtTime(gettimeofday()+3600);
+        my @timeArr = split(':',FmtTime(gettimeofday()+3600));
+        my $time = $timeArr[0].":".$timeArr[1];
         
         $ret .= "<div class=\"compound_plan_container_div\">";
         $ret .= "<div class=\"compound_on-till_container\" data-name=\"".$name."\">\n";
