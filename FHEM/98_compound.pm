@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.51";
+my $version = "0.9.55";
 
 my %gets = (
   "version:noArg"     => "",
@@ -456,7 +456,7 @@ sub compound_Set($@)
       foreach my $de (@devices) {
         push @sets, $de."_type:camera,cool,heat,light";
         push @sets, $de."_plan:textFieldNL-long";
-        push @sets, $de."_state:on,off,on-for-timer,on-till:undef";   
+        push @sets, $de."_state:on,off,on-for-timer,on-till";   
       }
     }
   }
@@ -645,18 +645,11 @@ sub compound_doSetOn ($) {
   return undef;
 }
 
-sub compound_doSetOff ($) {
-  my ($dHash) = @_;
-  my $hash=$dHash->{hash};
-  my $dev=$dHash->{dev};
-  compound_setOff($hash,$dev);
-  
-  return undef;
-}
-
 ## do set off
-sub compound_setOff($$){
-  my ($hash, $dev) = @_;
+sub compound_setOff($$;$) {
+  my ($hash, $dev, $auto) = @_;
+  
+  $auto = 0 if (!defined($auto));
   
   my @fDev=split(/_/,$dev);
     
@@ -670,7 +663,18 @@ sub compound_setOff($$){
   
   InternalTimer(gettimeofday()+1, "compound_doCheckTemp", $hash, 0);
   
-  map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_ErrorDialog === \"function\") compound_ErrorDialog('$name','".$compound_tt->{"deviceaccplan"}."','".$compound_tt->{"attention"}."!')", "")} devspec2array("TYPE=FHEMWEB");
+  if (!$auto) {
+    map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_ErrorDialog === \"function\") compound_ErrorDialog('$name','".$compound_tt->{"deviceaccplan"}."','".$compound_tt->{"attention"}."!')", "")} devspec2array("TYPE=FHEMWEB");
+  }
+  
+  return undef;
+}
+
+sub compound_doSetOff ($) {
+  my ($dHash) = @_;
+  my $hash=$dHash->{hash};
+  my $dev=$dHash->{dev};
+  compound_setOff($hash,$dev,1);
   
   return undef;
 }
@@ -914,8 +918,38 @@ sub compound_detailFn(){
   
   return undef if (IsDisabled($name) || AttrVal($name,"showDetailWidget",1)!=1);
   
-  #return compound_Html($name,undef,1).compound_PlanHtml($name,undef,1);
-  return compound_Html($name,undef,1).compound_PlanHtml($name,undef,1);
+  my $ret = "";
+  
+#  my $compound = ReadingsVal($name,"compound","-");
+#  
+#  if ($compound ne "-") {
+#  
+#    my $devsLight = $hash->{helper}{$compound}{TYPE}{"light"} if ($hash->{helper}{$compound}{TYPE}{"light"});
+#    my $devsHeat = $hash->{helper}{$compound}{TYPE}{"heat"} if ($hash->{helper}{$compound}{TYPE}{"heat"});
+#    my $devsCam = $hash->{helper}{$compound}{TYPE}{"camera"} if ($hash->{helper}{$compound}{TYPE}{"camera"});
+#    
+#    my $options="";
+#    $options .= "<option value=\"".$devsLight."\">".$compound_tt->{"light"}."</option>\n" if ($devsLight);
+#    $options .= "<option value=\"".$devsHeat."\">".$compound_tt->{"heating"}."</option>\n" if ($devsHeat);
+#    $options .= "<option value=\"".$devsCam."\">".$compound_tt->{"camera"}."</option>\n" if ($devsCam);
+#    
+#    my $time = FmtTime(gettimeofday()+3600);
+#    
+#    $ret .= "<div class=\"compound_on-till_container\" data-name=\"".$name."\">\n";
+#    $ret .= " <a href=\"#\" class=\"set\">set</a>";
+#    $ret .= " <select name=\"set_compound_device\" class=\"set_compound_device\">\n";
+#    $ret .= "  ".$options;
+#    $ret .= " </select>\n";
+#    $ret .= " <select name=\"set_compound_type\" class=\"set_compound_type\">\n";
+#    $ret .= "  <option value=\"on-till\">on-till</option>\n";
+#    $ret .= "  <option value=\"on-for-timer\">on-for-timer</option>\n";
+#    $ret .= " </select>\n";
+#    $ret .= " <input type=\"time\" value=\"".$time."\" class=\"set_compound_timer\" />\n";
+#    $ret .= " <input type=\"hidden\" value=\"".$time."\" class=\"set_compound_timer_hidden\" />\n";
+#    $ret .= "</div>\n";
+#  }
+
+  return compound_Html($name,undef,1).compound_PlanHtml($name,undef,1).$ret;
 }
 
 sub compound_PlanHtml(;$$$) {
@@ -943,10 +977,15 @@ sub compound_PlanHtml(;$$$) {
     # Javascript
     $rot .= "<script type=\"text/javascript\" src=\"$FW_ME/www/pgm2/compound.js?version=".$version."\"></script>
                 <style>
-                  .compound_plan_container {
+                  .compound_plan_container_div {
                       display: block;
                       padding: 0;
                       float:left;
+                      margin-bottom:10px;
+                  }
+                  .compound_plan_container {
+                      display: block;
+                      padding: 0;
                   }
                   .compound_table {
                       float: left;
@@ -986,6 +1025,15 @@ sub compound_PlanHtml(;$$$) {
                     cursor:pointer;
                     padding-right:10px;
                   }
+                  div.compound_on-till_container {
+                    margin-bottom: -10px
+                  }
+                  .compound_on-till_container a {
+                    border:2px solid;
+                    padding-left: 4px;
+                    padding-right: 4px;
+                    margin-top: 2px;
+                  }
                 </style>";
   }
   $ret .= "<div class='compound_plan_outer_container'>\n";
@@ -1001,7 +1049,28 @@ sub compound_PlanHtml(;$$$) {
       my $coolDev = $hash->{helper}{$compound}{TYPE}{cool} if ($hash->{helper}{$compound}{TYPE}{cool});
     
       if ($compound ne "-") {     
-
+        
+        my $options="";
+        $options .= "<option value=\"".$lightDev."\">".$compound_tt->{"light"}."</option>\n" if ($lightDev);
+        $options .= "<option value=\"".$heatDev."\">".$compound_tt->{"heating"}."</option>\n" if ($heatDev);
+        $options .= "<option value=\"".$camDev."\">".$compound_tt->{"camera"}."</option>\n" if ($camDev);
+        
+        my $time = FmtTime(gettimeofday()+3600);
+        
+        $ret .= "<div class=\"compound_plan_container_div\">";
+        $ret .= "<div class=\"compound_on-till_container\" data-name=\"".$name."\">\n";
+        $ret .= " <a href=\"#\" class=\"set\">set</a>";
+        $ret .= " <select name=\"set_compound_device\" class=\"set_compound_device\">\n";
+        $ret .= "  ".$options;
+        $ret .= " </select>\n";
+        $ret .= " <select name=\"set_compound_type\" class=\"set_compound_type\">\n";
+        $ret .= "  <option value=\"on-till\">on-till</option>\n";
+        $ret .= "  <option value=\"on-for-timer\">on-for-timer</option>\n";
+        $ret .= " </select>\n";
+        $ret .= " <input type=\"time\" value=\"".$time."\" class=\"set_compound_timer\" />\n";
+        $ret .= " <input type=\"hidden\" value=\"".$time."\" class=\"set_compound_timer_hidden\" />\n";
+        $ret .= "</div><br />\n";
+        
         $ret .= "<div class=\"compound_plan_container\">\n";
         $ret .= "<table class=\"roomoverview compound_table\">\n";
           
@@ -1090,6 +1159,7 @@ sub compound_PlanHtml(;$$$) {
         $ret .= "</table>\n";
         $ret .= "</div>\n";
       }
+      $ret .= "</div>\n";
     }
   }
   $ret .= "</div>\n";

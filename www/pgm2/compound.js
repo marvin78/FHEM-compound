@@ -95,8 +95,35 @@
     for (var i in e) el.addEventListener(e[i],resize,false);
     resize();
   }
+  function compound_setTimer(ele) {
+    var name = $(ele).parent().attr('data-name');
+    var dev = $(ele).parent().find('.set_compound_device').val();
+    var type = $(ele).parent().find('.set_compound_type').val();
+    var time = $(ele).parent().find('.set_compound_timer').val();
+    if (dev!="" && type!="" && time!="") {
+      compound_sendCommand('set ' + name + ' ' + dev + '_state ' + type + ' ' +  time);
+    }
+    return false;
+  }
 
   $(document).ready(function(){
+    $('.compound_on-till_container').on('click','.set',function(e) {
+      compound_setTimer(this);
+    });
+    $('.compound_on-till_container').on('keypress','.set_compound_timer',function(e) {
+      if (e.which==13) {
+        compound_setTimer(this);
+      }
+    });
+ 
+    $('.compound_on-till_container').on('change','.set_compound_type',function(e) {
+      var val = $(this).val();
+      var timeInput = $(this).parent().find('.set_compound_timer');
+      var timeInputVal = $(this).parent().find('.set_compound_timer_hidden').val();
+      var tType = $(timeInput).attr('type');
+      if (val == "on-till" && tType != "time") $(timeInput).attr('type','time').val(timeInputVal);
+      if (val == "on-for-timer" && tType != "text") $(timeInput).attr('type','text').val(3600);
+    });
     $('.compound_name').each(function() {
       var name = $(this).val();
       $('#compound_schaltung_table').on('click','span.compound_status_span_'+name,function(e) {
