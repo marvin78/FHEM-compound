@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.57";
+my $version = "0.9.58";
 
 my %gets = (
   "version:noArg"     => "",
@@ -87,7 +87,7 @@ my $compound_tt;
 my $compound_month;
 
 sub compound_checkTemp($$;$);
-sub compound_setOff($$);
+sub compound_setOff($$;$);
 
 sub compound_Initialize($) { 
   my ($hash) = @_;
@@ -468,7 +468,7 @@ sub compound_Set($@)
   return "$name is disabled. Enable it to set something." if( $cmd ne "active" && (AttrVal($name, "disable", 0 ) == 1 || ReadingsVal($name,"state","active") eq "inactive"));
   
   if ( $cmd =~ /^compound|active|inactive|.*plan|.*type?$/ || $args[0] =~ /(.*on.*|.*off.*)/) {
-    Log3 $name, 4, "$name: set cmd:$cmd arg1:$args[0]".(defined($args[1])?" arg2:$args[1]":"");
+    Log3 $name, 4, "$name: set cmd:$cmd".(defined($args[0])?" arg1:$args[0]":"").(defined($args[1])?" arg2:$args[1]":"");
     return "[$name] Invalid argument to set $cmd, has to be one of $compounds" if ( $cmd =~ /^compound?$/ && !compound_inArray(\@aCompounds,$args[0]) );
     if ( $cmd =~ /^compound?$/ ) {     
       compound_setCompound($hash,$name,$args[0]);
@@ -503,12 +503,12 @@ sub compound_Set($@)
         map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_removeLoading === \"function\") compound_removeLoading()", "")} devspec2array("TYPE=FHEMWEB");
       }
     }
-    if ( $args[0] =~ /^.*on.*$/ ) {
+    if ( $cmd =~ /^.*state?$/ && defined($args[0]) && $args[0] =~ /^.*on.*$/ ) {
       Log3 $name, 4, "$name: set $args[0]";
       RemoveInternalTimer($hash);
       compound_setOn($hash,$name,$cmd,@args);
     }
-    elsif ( $args[0] =~ /^.*off$/ ) {
+    elsif ( $cmd =~ /^.*state?$/ && defined($args[0]) &&  $args[0] =~ /^.*off$/ ) {
       Log3 $name, 4, "$name: set $cmd $args[0] ";
       RemoveInternalTimer($hash,"compound_doCheckTemp");
       compound_setOff($hash,$cmd);
