@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.56";
+my $version = "0.9.57";
 
 my %gets = (
   "version:noArg"     => "",
@@ -1028,11 +1028,14 @@ sub compound_PlanHtml(;$$$) {
                   div.compound_on-till_container {
                     margin-bottom: -10px
                   }
-                  .compound_on-till_container a {
+                  div.compound_on-till_container a {
                     border:2px solid;
                     padding-left: 4px;
                     padding-right: 4px;
                     margin-top: 2px;
+                  }
+                  div.compound_on-till_container select {
+                    margin-right:0px!important;
                   }
                 </style>";
   }
