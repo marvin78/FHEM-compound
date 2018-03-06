@@ -9,7 +9,7 @@ use Data::Dumper;
 
 #######################
 # Global variables
-my $version = "0.9.55";
+my $version = "0.9.56";
 
 my %gets = (
   "version:noArg"     => "",
@@ -982,6 +982,7 @@ sub compound_PlanHtml(;$$$) {
                       padding: 0;
                       float:left;
                       margin-bottom:10px;
+                      margin-right: 10px;
                   }
                   .compound_plan_container {
                       display: block;
@@ -989,7 +990,6 @@ sub compound_PlanHtml(;$$$) {
                   }
                   .compound_table {
                       float: left;
-                      margin-right: 10px;
                   }
                   div.compound_devType {
                     padding: 4px!important;     
