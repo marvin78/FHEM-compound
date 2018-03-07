@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.67";
+my $version = "0.9.68";
 
 my %gets = (
   "version:noArg"     => "",
@@ -647,7 +647,7 @@ sub compound_Restore($) {
   
   map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_removeLoading === \"function\") compound_removeLoading()", "")} devspec2array("TYPE=FHEMWEB");
   
-  compound_ReloadPlan($name);
+  compound_ReloadPlan();
   
   return 1;
 }
