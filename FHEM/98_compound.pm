@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.72";
+my $version = "0.9.73";
 
 my %gets = (
   "version:noArg"     => "",
@@ -635,9 +635,12 @@ sub compound_Restore($) {
             $temp .= $i." ".$hash->{helper}{DATA}{plan}{$cp}{$dev}{$i};
             $temp .= "\n" if ($i!=12);
           }
-        }  
-        readingsBulkUpdate($hash,$dev."_plan",$temp);
-        readingsBulkUpdate($hash,$dev."_type",$hash->{helper}{DATA}{$cp}{TYPES}{$dev}) if ($hash->{helper}{DATA}{$cp}{TYPES}{$dev});
+        }
+        my $devPlan = ReadingsVal($name,$dev."_plan","-");  
+        my $devType = ReadingsVal($name,$dev."_type","-");  
+        my $hashType = $hash->{helper}{DATA}{$cp}{TYPES}{$dev};
+        readingsBulkUpdate($hash,$dev."_plan",$temp) if ($temp ne $devPlan);
+        readingsBulkUpdate($hash,$dev."_type",$hashType) if ($hashType && $hashType ne $devType);
       }
     }
   }
