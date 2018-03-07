@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.69";
+my $version = "0.9.70";
 
 my %gets = (
   "version:noArg"     => "",
@@ -490,7 +490,7 @@ sub compound_Set($@)
       compound_setCompound($hash,$name,$compound) if ($cmd eq "active");
       $attr{$name}{"disable"} = 0 if (AttrVal($name,"disable",0) == 1);
       Log3 $name, 3, "$name: set Device $cmd";
-      compound_ReloadPlan();
+      compound_ReloadPlan($name);
       compound_ReloadTable();
       compound_SetDeviceTypes($hash);
       $hash->{INTERVAL}=AttrVal($name,"interval",undef)?AttrVal($name,"interval",undef):300;
@@ -574,7 +574,7 @@ sub compound_SetPlan($) {
     compound_RestartGetTimer($hash);
     
   }
-  compound_ReloadPlan();
+  compound_ReloadPlan($name);
   
   return undef;
 }
@@ -647,7 +647,7 @@ sub compound_Restore($) {
   
   map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_removeLoading === \"function\") compound_removeLoading()", "")} devspec2array("TYPE=FHEMWEB");
   
-  compound_ReloadPlan();
+  compound_ReloadPlan($name);
   
   return 1;
 }
@@ -938,7 +938,7 @@ sub compound_setCompound($$@) {
       
       Log3 $name,4,"$name: compound set to $args[0]";
       
-      compound_ReloadPlan();
+      compound_ReloadPlan($name);
       compound_ReloadTable();
       compound_SetDeviceTypes($hash);
       
@@ -972,7 +972,7 @@ sub compound_RestartGetTimer($) {
 }
 
 # called if weblink widget table has to be updated
-sub compound_ReloadPlan(;$) {
+sub compound_ReloadPlan($) {
   my ($regEx) = @_;
   
   $regEx=0 if (!defined($regEx));
@@ -981,7 +981,7 @@ sub compound_ReloadPlan(;$) {
   $ret =~ s/\"/\'/g;
   $ret =~ s/\n//g;
   
-  map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_reloadPlan === \"function\") compound_reloadPlan(\"$ret\")", "")} devspec2array("TYPE=FHEMWEB");
+  map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_reloadPlan === \"function\") compound_reloadPlan(\"$regEx\",\"$ret\")", "")} devspec2array("TYPE=FHEMWEB");
 }
 
 # called if weblink widget table has to be updated
@@ -1132,8 +1132,8 @@ sub compound_PlanHtml(;$$$) {
                     margin-right:0px!important;
                   }
                 </style>";
+    $ret .= "<div class='compound_plan_outer_container'>\n";
   }
-  $ret .= "<div class='compound_plan_outer_container'>\n";
                 
   foreach my $name (@devs) {    
     if (!IsDisabled($name)) {
@@ -1155,47 +1155,49 @@ sub compound_PlanHtml(;$$$) {
         my @timeArr = split(':',FmtTime(gettimeofday()+3600));
         my $time = $timeArr[0].":".$timeArr[1];
         
-        $ret .= "<div class=\"compound_plan_container_div\">";
-        $ret .= "<div class=\"compound_on-till_container\" data-name=\"".$name."\">\n";
-        $ret .= " <a href=\"#\" class=\"set\">set</a>";
-        $ret .= " <select name=\"set_compound_device\" class=\"set_compound_device\">\n";
-        $ret .= "  ".$options;
-        $ret .= " </select>\n";
-        $ret .= " <select name=\"set_compound_type\" class=\"set_compound_type\">\n";
-        $ret .= "  <option value=\"on-till\">on-till</option>\n";
-        $ret .= "  <option value=\"on-for-timer\">on-for-timer</option>\n";
-        $ret .= " </select>\n";
-        $ret .= " <input type=\"time\" value=\"".$time."\" class=\"set_compound_timer\" />\n";
-        $ret .= " <input type=\"hidden\" value=\"".$time."\" class=\"set_compound_timer_hidden\" />\n";
-        $ret .= "</div><br />\n";
-        
-        $ret .= "<div class=\"compound_plan_container\">\n";
-        $ret .= "<table class=\"roomoverview compound_table\">\n";
+        if (!$refreshGet) {
+          $ret .= "<div class=\"compound_plan_container_div\">";
+          $ret .= "<div class=\"compound_on-till_container\" data-name=\"".$name."\">\n";
+          $ret .= " <a href=\"#\" class=\"set\">set</a>";
+          $ret .= " <select name=\"set_compound_device\" class=\"set_compound_device\">\n";
+          $ret .= "  ".$options;
+          $ret .= " </select>\n";
+          $ret .= " <select name=\"set_compound_type\" class=\"set_compound_type\">\n";
+          $ret .= "  <option value=\"on-till\">on-till</option>\n";
+          $ret .= "  <option value=\"on-for-timer\">on-for-timer</option>\n";
+          $ret .= " </select>\n";
+          $ret .= " <input type=\"time\" value=\"".$time."\" class=\"set_compound_timer\" />\n";
+          $ret .= " <input type=\"hidden\" value=\"".$time."\" class=\"set_compound_timer_hidden\" />\n";
+          $ret .= "</div><br />\n";
           
-        $ret .= "<tr class=\"devTypeTr\"><td colspan=\"3\">\n".
-                " <div class=\"compound_devType compound_devType_plan compound_devType_".$name." col_header\">\n".
-                    $compound_tt->{"schedule"}.": ".(!$FW_hiddenroom{detail}?"<a title=\"\" href=\"/fhem?detail=".$name."\">":"").
-                      AttrVal($name,"alias",$name).
-                    (!$FW_hiddenroom{detail}?"</a>":"").
-                    " - ".$compound.
-                " </div>".
-                "</td></tr>";
-        $ret .= "<tr><td colspan=\"3\">\n";
-        $ret .= "<table class=\"block wide\" id=\"compound_planung_table\">\n"; 
-      
-        $ret .= "<thead id=\"compound_head_th\">\n".
-                " <tr>\n".
-                "   <th class=\"col1\">".$compound_tt->{"month"}."</th>\n".
-                ($lightDev?"  <th class=\"col3\" colspan=\"2\">".$compound_tt->{"light"}."</th>\n":"").
-                ($heatDev?"   <th class=\"col3\" colspan=\"2\">".$compound_tt->{"heating"}."</th>\n":"").
-                ($camDev?"  <th class=\"col3\" colspan=\"2\">".$compound_tt->{"camera"}."</th>\n":"").
-                ($coolDev?"   <th class=\"col3\" colspan=\"2\">".$compound_tt->{"cooling"}."</th>\n":"").
-                " </tr>".
-                "</thead>\n";
-      
+          $ret .= "<div class=\"compound_plan_container\">\n";
+          $ret .= "<table class=\"roomoverview compound_table\">\n";
+            
+          $ret .= "<tr class=\"devTypeTr\"><td colspan=\"3\">\n".
+                  " <div class=\"compound_devType compound_devType_plan compound_devType_".$name." col_header\">\n".
+                      $compound_tt->{"schedule"}.": ".(!$FW_hiddenroom{detail}?"<a title=\"\" href=\"/fhem?detail=".$name."\">":"").
+                        AttrVal($name,"alias",$name).
+                      (!$FW_hiddenroom{detail}?"</a>":"").
+                      " - ".$compound.
+                  " </div>".
+                  "</td></tr>";
+          $ret .= "<tr><td colspan=\"3\">\n";
+          $ret .= "<table class=\"block wide\" id=\"compound_planung_table\">\n"; 
         
+          $ret .= "<thead id=\"compound_head_th\">\n".
+                  " <tr>\n".
+                  "   <th class=\"col1\">".$compound_tt->{"month"}."</th>\n".
+                  ($lightDev?"  <th class=\"col3\" colspan=\"2\">".$compound_tt->{"light"}."</th>\n":"").
+                  ($heatDev?"   <th class=\"col3\" colspan=\"2\">".$compound_tt->{"heating"}."</th>\n":"").
+                  ($camDev?"  <th class=\"col3\" colspan=\"2\">".$compound_tt->{"camera"}."</th>\n":"").
+                  ($coolDev?"   <th class=\"col3\" colspan=\"2\">".$compound_tt->{"cooling"}."</th>\n":"").
+                  " </tr>".
+                  "</thead>\n";
+        
+          
 
-        $ret .= "<tbody class=\"compound_planung_data_body\" id=\"compound_data_body_".$name."\">";
+          $ret .= "<tbody class=\"compound_planung_data_body\" id=\"compound_data_body_".$name."\">";
+        }
         my $eo;
         my $month;
         my $num;
@@ -1250,18 +1252,21 @@ sub compound_PlanHtml(;$$$) {
                   " </td>\n":"").
                   "</tr>\n";
         }
+        if (!$refreshGet) {
+          $ret .= "</tbody>";
         
-        $ret .= "</tbody>";
-      
-        $ret .= "</table></td></tr>\n";
-        $ret .= "</table>\n";
+          $ret .= "</table></td></tr>\n";
+          $ret .= "</table>\n";
+          $ret .= "</div>\n";
+        }
+      }
+      if (!$refreshGet) {
         $ret .= "</div>\n";
       }
-      $ret .= "</div>\n";
     }
   }
-  $ret .= "</div>\n";
   if (!$refreshGet) {
+    $ret .= "</div>\n";
     $ret .= "<br style=\"clear:both;\" /><br />";
   }
   return $rot.$ret;

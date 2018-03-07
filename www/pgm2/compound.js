@@ -87,11 +87,9 @@
     compound_removeLoading();
   }
 
-  function compound_reloadPlan(val) {
-    $('div.compound_plan_outer_container').find('div.compound_plan_container').remove();
-    $('div.compound_plan_outer_container').html(val);
+  function compound_reloadPlan(name,val) {
+    $('div.compound_plan_outer_container').find('#compound_data_body_' + name).html(val);
     compound_removeLoading();
-    compound_addHeaders();
   }
   
   function resizable (el, factor) {
