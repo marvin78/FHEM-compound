@@ -1,2 +1,2 @@
-UPD 2018-03-07_13:35:49 54479 FHEM/98_compound.pm
-UPD 2018-03-07_12:53:41 10533 www/pgm2/compound.js
+UPD 2018-03-07_13:51:02 54479 FHEM/98_compound.pm
+UPD 2018-03-07_13:50:16 10657 www/pgm2/compound.js

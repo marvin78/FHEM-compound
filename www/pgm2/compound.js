@@ -119,15 +119,6 @@
 
   $(document).ready(function(){
     compound_addHeaders();
-    $('.compound_on-till_container').on('click','.set',function(e) {
-      compound_setTimer(this);
-    });
-    $('.compound_on-till_container').on('keypress','.set_compound_timer',function(e) {
-      if (e.which==13) {
-        compound_setTimer(this);
-      }
-    });
- 
     $('.compound_on-till_container').on('change','.set_compound_type',function(e) {
       var val = $(this).val();
       var timeInput = $(this).parent().find('.set_compound_timer');
@@ -138,6 +129,14 @@
     });
     $('.compound_name').each(function() {
       var name = $(this).val();
+      $('.compound_plan_outer_container').on('click','.compound_on-till_container[data-name=' + name + '] .set',function(e) {
+        compound_setTimer(this);
+      });
+      $('.compound_plan_outer_container').on('keypress','.compound_on-till_container[data-name=' + name + '] .set_compound_timer',function(e) {
+        if (e.which==13) {
+          compound_setTimer(this);
+        }
+      });
       $('#compound_schaltung_table').on('click','span.compound_status_span_'+name,function(e) {
         var val = $(this).attr('data-do');
         compound_sendCommand('set ' + name + ' ' +  val);
