@@ -6,10 +6,11 @@ use strict;
 use warnings;
 use Time::Local;
 use Data::Dumper; 
+use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.59";
+my $version = "0.9.67";
 
 my %gets = (
   "version:noArg"     => "",
@@ -33,6 +34,9 @@ my %compound_transtable_EN = (
   "attention"         =>  "Attention",
   "deviceaccplan"     =>  "Device acts according to configured schedule now",
   "areyousure"        =>  "Are you sure?",
+  "save"              =>  "Save",
+  "restore"           =>  "Restore",
+  "restoreconfirm"    =>  "Are you sure? This overwrites current plans.",
 );
 
 my %compound_transtable_DE = ( 
@@ -51,6 +55,9 @@ my %compound_transtable_DE = (
   "attention"         =>  "Achtung",
   "deviceaccplan"     =>  "Gerät arbeitet ab sofort nach konfiguriertem Zeitplan",
   "areyousure"        =>  "Sicher?",
+  "save"              =>  "Speichern",
+  "restore"           =>  "Wiederherstellen",
+  "restoreconfirm"    =>  "Wirklich alle Pläne wiederherstellen?",
 );
 
 my %compound_month_EN = ( 
@@ -166,7 +173,7 @@ sub compound_Define($$) {
   my $i=0; 
   my $v=0;
   
-  delete($hash->{helper});
+  delete($hash->{helper}{DATA});
   CommandDeleteReading(undef, "$hash->{NAME} .*_(state|temperature|humidity)");
   
   my $cs="";
@@ -188,9 +195,9 @@ sub compound_Define($$) {
         $v++;
       }
       if ($r==1) {
-        $hash->{helper}{"tempDevices"}{$dev}=$compound;
-        $hash->{helper}{$compound}{"tempDevice"}=$dev;
-        push @{$hash->{helper}{$compound}{"compDevices"}},$dev;
+        $hash->{helper}{DATA}{"tempDevices"}{$dev}=$compound;
+        $hash->{helper}{DATA}{$compound}{"tempDevice"}=$dev;
+        push @{$hash->{helper}{DATA}{$compound}{"compDevices"}},$dev;
         push @tdevices, $dev;
         readingsSingleUpdate($hash,$dev."_temperature",ReadingsVal($dev,"temperature","---"),1) if ($co ne "-" && $co eq $p[0]);
       }
@@ -200,10 +207,10 @@ sub compound_Define($$) {
         push @devices, $d[0];
         my $dStateType=$d[1]?$d[1]:"state";
         readingsSingleUpdate($hash,$d[0]."_state",ReadingsVal($d[0],$dStateType,"---"),1) if ($co ne "-" && $co eq $p[0]);
-        $hash->{helper}{"devices"}{$d[0]}=$compound;
-        push @{$hash->{helper}{$compound}{"devices"}},$d[0];
-        push @{$hash->{helper}{$compound}{"compDevices"}},$d[0];
-        $hash->{helper}{"DEVREADINGS"}{$d[0]}=$dStateType;    
+        $hash->{helper}{DATA}{"devices"}{$d[0]}=$compound;
+        push @{$hash->{helper}{DATA}{$compound}{"devices"}},$d[0];
+        push @{$hash->{helper}{DATA}{$compound}{"compDevices"}},$d[0];
+        $hash->{helper}{DATA}{"DEVREADINGS"}{$d[0]}=$dStateType;    
       }
       $r++;
     }
@@ -229,7 +236,7 @@ sub compound_Define($$) {
     readingsSingleUpdate($hash,"state","inactive",1) if(ReadingsVal($name,"state","active") eq "active");
     RemoveInternalTimer($hash);
     compound_SetPlan($hash);
-    $hash->{NOTIFYDEV} = "global,".join(",",@{$hash->{helper}{$co}{"compDevices"}}) if ($co ne "-" && defined($hash->{helper}{$co}{"compDevices"}));
+    $hash->{NOTIFYDEV} = "global,".join(",",@{$hash->{helper}{DATA}{$co}{"compDevices"}}) if ($co ne "-" && defined($hash->{helper}{DATA}{$co}{"compDevices"}));
     Log3 $name, 5, "$name: added NotifyDev $hash->{NOTIFYDEV} to Device";
   }
   
@@ -251,17 +258,17 @@ sub compound_SetDeviceTypes($) {
   
   if ($compound ne "-") {
   
-    my @devs=@{$hash->{helper}{$compound}{devices}} if ($hash->{helper}{$compound}{devices});
+    my @devs=@{$hash->{helper}{DATA}{$compound}{devices}} if ($hash->{helper}{DATA}{$compound}{devices});
     
     foreach my $d (@devs) {
       
       if (ReadingsVal($name,$d."_type","-") eq "-") {
-        $hash->{helper}{$compound}{"TYPES"}{$d}="light";
-        $hash->{helper}{$compound}{"TYPE"}{"light"}=$d;
+        $hash->{helper}{DATA}{$compound}{"TYPES"}{$d}="light";
+        $hash->{helper}{DATA}{$compound}{"TYPE"}{"light"}=$d;
       }
       else {
-        $hash->{helper}{$compound}{"TYPES"}{$d}=ReadingsVal($name,$d."_type","-");
-        $hash->{helper}{$compound}{"TYPE"}{ReadingsVal($name,$d."_type","-")}=$d;
+        $hash->{helper}{DATA}{$compound}{"TYPES"}{$d}=ReadingsVal($name,$d."_type","-");
+        $hash->{helper}{DATA}{$compound}{"TYPE"}{ReadingsVal($name,$d."_type","-")}=$d;
       }
     }
   }
@@ -304,7 +311,7 @@ sub compound_Notify($$) {
   if( $dev->{NAME} eq "global" && (grep(m/^INITIALIZED$/, @{$events}) || grep(m/^REREADCFG$/, @{$events}))) {
     readingsSingleUpdate($hash,"state","active",1) if( AttrVal($name,"disable", 0) > 0 && ReadingsVal($name,"state","inactive") ne "inactive");
     if ($compound ne "-") {
-      $hash->{NOTIFYDEV} = "global,".join(",",@{$hash->{helper}{$compound}{"compDevices"}}) if (defined($hash->{helper}{$compound}{"compDevices"}));
+      $hash->{NOTIFYDEV} = "global,".join(",",@{$hash->{helper}{DATA}{$compound}{"compDevices"}}) if (defined($hash->{helper}{DATA}{$compound}{"compDevices"}));
       Log3 $name, 5, "$name: added NotifyDev ".$hash->{NOTIFYDEV}." to Device";
     }
     compound_SetDeviceTypes($hash);
@@ -313,10 +320,10 @@ sub compound_Notify($$) {
   else {
     if ($state eq "active" && $compound ne "-") {
       Log3 $name,5, $name."Notify: ".$devName;
-      my $tDev=$hash->{helper}{$compound}{"tempDevice"};
+      my $tDev=$hash->{helper}{DATA}{$compound}{"tempDevice"};
       my @devs;
       
-      @devs=@{$hash->{helper}{$compound}{"devices"}} if (defined($hash->{helper}{$compound}{"devices"}));
+      @devs=@{$hash->{helper}{DATA}{$compound}{"devices"}} if (defined($hash->{helper}{DATA}{$compound}{"devices"}));
       # get temperature and/or humidity Readings
       
       # analyse events
@@ -330,12 +337,12 @@ sub compound_Notify($$) {
         if ($tDev eq $devName) {
           if (grep(m/^temperature.*$/, $event) || grep(m/^temperature.*$/, $event)) {
             readingsSingleUpdate($hash,$devName."_$dReading",$e[1],1);
-            compound_checkTemp($hash,$name,$e[1]) if ($hash->{helper}{"devices"}{$devName}=$compound && $dReading eq "temperature" && $init_done && $manu ne "on");
+            compound_checkTemp($hash,$name,$e[1]) if ($hash->{helper}{DATA}{"devices"}{$devName}=$compound && $dReading eq "temperature" && $init_done && $manu ne "on");
           }
           $doTable=1;
         }
         if (compound_inArray(\@devs,$devName)) {
-          my $devStateType=$hash->{helper}{"DEVREADINGS"}{$devName};
+          my $devStateType=$hash->{helper}{DATA}{"DEVREADINGS"}{$devName};
           readingsSingleUpdate($hash,$devName."_state",$e[1],1) if (grep(m/^$devStateType.*$/, $event));
           RemoveInternalTimer($hash);
         
@@ -446,11 +453,15 @@ sub compound_Set($@)
   
   my $compound=ReadingsVal($name,"compound","-");
   
-  push @sets, "compound:$compounds" if(ReadingsVal($name,"state","active") eq "active");
-  push @sets, "active" if(ReadingsVal($name,"state","active") ne "active");
-  push @sets, "inactive" if(ReadingsVal($name,"state","inactive") eq "active");
+  if (!IsDisabled($name)) {
+    push @sets, "compound:$compounds" if(!IsDisabled($name) );
+    push @sets, "restore:noArg" if(!IsDisabled($name) );
+    push @sets, "inactive:noArg" if(!IsDisabled($name) );
+    push @sets, "save:noArg" if(!IsDisabled($name) );
+  }
+  push @sets, "active" if(IsDisabled($name) );
   
-  if ($compound ne "-" && ReadingsVal($name,"state","active") eq "active") {
+  if ($compound ne "-" && !IsDisabled($name)) {
     if (defined($hash->{"DEVICES"})) {
       my @devices = @{$hash->{"DEVICES"}};
       foreach my $de (@devices) {
@@ -467,7 +478,7 @@ sub compound_Set($@)
   
   return "$name is disabled. Enable it to set something." if( $cmd ne "active" && (AttrVal($name, "disable", 0 ) == 1 || ReadingsVal($name,"state","active") eq "inactive"));
   
-  if ( $cmd =~ /^compound|active|inactive|.*plan|.*type?$/ || $args[0] =~ /(.*on.*|.*off.*)/) {
+  if ( $cmd =~ /^compound|active|inactive|restore|save|.*plan|.*type?$/ || $args[0] =~ /(.*on.*|.*off.*)/) {
     Log3 $name, 4, "$name: set cmd:$cmd".(defined($args[0])?" arg1:$args[0]":"").(defined($args[1])?" arg2:$args[1]":"");
     return "[$name] Invalid argument to set $cmd, has to be one of $compounds" if ( $cmd =~ /^compound?$/ && !compound_inArray(\@aCompounds,$args[0]) );
     if ( $cmd =~ /^compound?$/ ) {     
@@ -483,6 +494,12 @@ sub compound_Set($@)
       compound_ReloadTable();
       compound_SetDeviceTypes($hash);
       $hash->{INTERVAL}=AttrVal($name,"interval",undef)?AttrVal($name,"interval",undef):300;
+    }
+    elsif ( $cmd eq "restore") {
+      compound_Restore($hash);
+    }
+    elsif ( $cmd eq "save") {
+      compound_Save($hash);
     }
     elsif ( $cmd =~ /^.*type?$/ ) {
       my $do = join(" ", @args);
@@ -544,21 +561,95 @@ sub compound_SetPlan($) {
       for(my $i=1;$i<=12;$i++) {
         #my $t = sprintf ('%02d',$i);
         if (defined($planArr[$i])) {
-          $hash->{helper}{plan}{$hash->{helper}{devices}{$_}}{$_}{$i} = $planArr[$i];
+          $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$_}}{$_}{$i} = $planArr[$i];
         }
         else {
-          $hash->{helper}{plan}{$hash->{helper}{devices}{$_}}{$_}{$i}  = $planArr[13] if (defined($planArr[13]));
-          $hash->{helper}{plan}{$hash->{helper}{devices}{$_}}{$_}{$i}  = "-" if (!defined($planArr[13]));
+          $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$_}}{$_}{$i}  = $planArr[13] if (defined($planArr[13]));
+          $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$_}}{$_}{$i}  = "-" if (!defined($planArr[13]));
         }
       }
       map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_removeLoading === \"function\") compound_removeLoading()", "")} devspec2array("TYPE=FHEMWEB");
     }
   
     compound_RestartGetTimer($hash);
+    
   }
   compound_ReloadPlan();
   
   return undef;
+}
+
+sub compound_Save($) {
+  my ($hash) = @_;
+  
+  my $name=$hash->{NAME};
+  
+  my $json   = JSON->new->utf8;
+    
+  my $jhash = eval{ $json->encode(  $hash->{helper}{DATA} ) };
+  Log3 $name,1,"compound [$name]: jhash: ".Dumper($jhash);
+  my $error  = FileWrite("./log/compound_".$name,$jhash);
+  
+  
+  Log3 $name,3,"compound [$name]: Data plan saved to files";
+  
+  readingsSingleUpdate( $hash, "lastSave", TimeNow(), 1 ); 
+  
+  map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_removeLoading === \"function\") compound_removeLoading()", "")} devspec2array("TYPE=FHEMWEB");
+  
+  return undef;
+}
+
+sub compound_Restore($) {
+  my ($hash) = @_;
+  
+  my $name=$hash->{NAME};
+  
+  my ($error,@lines) = FileRead("./log/compound_".$name);
+  
+  if( defined($error) && $error ne "" ){
+    Log3 $name,1,"compound [$name]: read error=$error";
+    return undef;
+  }
+  my $json   = JSON->new->utf8;
+  my $jhash = eval{ $json->decode( join('',@lines) ) };
+  
+  delete($hash->{helper}{DATA});
+  
+  $hash->{helper}{DATA} = {%{$jhash}}; 
+  Log3 $name,5,"compound [$name]: Data plan restored from save file";
+  
+  readingsBeginUpdate( $hash );
+  
+  if ($hash->{helper}{DATA}{"activeCompound"} && $hash->{helper}{DATA}{"activeCompound"} ne ReadingsVal($name,"compound","-")) {
+    readingsBulkUpdate( $hash, "compound", $hash->{helper}{DATA}{"activeCompound"});
+  }
+  
+  foreach my $cp (@{$hash->{COMPOUNDS}}) {
+    my @devs = @{$hash->{helper}{DATA}{$cp}{"devices"}} if ($hash->{helper}{DATA}{$cp}{"devices"});
+    if (@devs) {
+      foreach my $dev (@devs) {
+        my $temp = "";
+        for(my $i=1;$i<=12;$i++) {
+          if ($hash->{helper}{DATA}{plan}{$cp}{$dev}{$i}) {
+            $temp .= $i." ".$hash->{helper}{DATA}{plan}{$cp}{$dev}{$i};
+            $temp .= "\n" if ($i!=12);
+          }
+        }  
+        readingsBulkUpdate( $hash,$dev."_plan",$temp);
+      }
+    }
+  }
+  
+  readingsBulkUpdate( $hash, "lastRestore", TimeNow());
+  
+  readingsEndUpdate( $hash, 1 );
+  
+  map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_removeLoading === \"function\") compound_removeLoading()", "")} devspec2array("TYPE=FHEMWEB");
+  
+  compound_ReloadPlan($name);
+  
+  return 1;
 }
 
 ## set on
@@ -575,7 +666,7 @@ sub compound_setOn($$@) {
     
     if ($compound && defined($fDev[1])) {
       # check devices
-      my @devices = @{$hash->{helper}{$compound}{"devices"}};
+      my @devices = @{$hash->{helper}{DATA}{$compound}{"devices"}};
       foreach my $de (@devices) {
         $checkDev=1 if ($dev eq $de);
       }
@@ -710,7 +801,7 @@ sub compound_checkTemp($$;$) {
     
     my ($sec,$min,$hour,$mday,$month,$year,$wday,$yday,$isdst) = localtime(time);
     
-    my $tempDev=$hash->{helper}{$compound}{"tempDevice"};
+    my $tempDev=$hash->{helper}{DATA}{$compound}{"tempDevice"};
               
     my $temp = ReadingsVal($tempDev,"temperature",0);
         
@@ -721,16 +812,16 @@ sub compound_checkTemp($$;$) {
     my $time=time;
     
     Log3 $name, 4, "$name: Begin check temperature: $name";
-    if (defined($hash->{helper}{$compound}{"devices"})) {
-      my @devices=@{$hash->{helper}{$compound}{"devices"}};
+    if (defined($hash->{helper}{DATA}{$compound}{"devices"})) {
+      my @devices=@{$hash->{helper}{DATA}{$compound}{"devices"}};
       foreach my $dev (@devices) {
         
         #Log3 $name, 5, "$name: Check temperature for device $dev with temperature $temp" if (defined($temp));
         
-        my $cmd1=$hash->{helper}{$compound}{"TYPES"}{$dev} ne "cool"?"on":"off";
-        my $cmd2=$hash->{helper}{$compound}{"TYPES"}{$dev} ne "cool"?"off":"on";
+        my $cmd1=$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev} ne "cool"?"on":"off";
+        my $cmd2=$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev} ne "cool"?"off":"on";
         
-        my $tPlan=$hash->{helper}{plan}{$compound}{$dev}{$month+1};
+        my $tPlan=$hash->{helper}{DATA}{plan}{$compound}{$dev}{$month+1};
         
         if ($tPlan ne "-") {
           my @plans = split(/ /, $tPlan );
@@ -810,23 +901,23 @@ sub compound_setCompound($$@) {
     if (compound_inArray(\@compounds,$co)) {
       
       #my $oldC = "-";
-      #$oldC = $hash->{helper}{activeCompound} if ($hash->{helper}{activeCompound});
+      #$oldC = $hash->{helper}{DATA}{activeCompound} if ($hash->{helper}{DATA}{activeCompound});
       
       # set old devices off
-      #if ($oldC ne "-" && $hash->{helper}{$oldC}{"devices"}) {
-      #  foreach (@{$hash->{helper}{$oldC}{"devices"}}) {
+      #if ($oldC ne "-" && $hash->{helper}{DATA}{$oldC}{"devices"}) {
+      #  foreach (@{$hash->{helper}{DATA}{$oldC}{"devices"}}) {
       #    CommandSet(undef,"$_:FILTER=STATE!=off off");
       #  }
       #}
       
-      $hash->{helper}{activeCompound}=$co;
+      $hash->{helper}{DATA}{activeCompound}=$co;
       
       readingsBeginUpdate($hash);
       
       readingsBulkUpdate($hash,"compound",$co);
       CommandDeleteReading(undef, "$hash->{NAME} .*_(state|temperature|humidity)");
       
-      my $tempDev = $hash->{helper}{$co}{"tempDevice"};
+      my $tempDev = $hash->{helper}{DATA}{$co}{"tempDevice"};
       
       if ($tempDev) {
         readingsBulkUpdate($hash,$tempDev."_temperature",ReadingsVal($tempDev,"temperature","---"));
@@ -835,14 +926,14 @@ sub compound_setCompound($$@) {
       
       my $i=0;
       
-      foreach my $dev (@{$hash->{helper}{$co}{"devices"}}) {
-        readingsBulkUpdate($hash,$dev."_state",ReadingsVal($dev,$hash->{helper}{"DEVREADINGS"}{$dev},"---"));
+      foreach my $dev (@{$hash->{helper}{DATA}{$co}{"devices"}}) {
+        readingsBulkUpdate($hash,$dev."_state",ReadingsVal($dev,$hash->{helper}{DATA}{"DEVREADINGS"}{$dev},"---"));
         $i++;
       }
       
       readingsEndUpdate( $hash, 1 );
       if ($tempDev || $i>0) {
-        $hash->{NOTIFYDEV} = "global,".join(",",@{$hash->{helper}{$co}{"compDevices"}});
+        $hash->{NOTIFYDEV} = "global,".join(",",@{$hash->{helper}{DATA}{$co}{"compDevices"}});
       }
       
       Log3 $name,4,"$name: compound set to $args[0]";
@@ -924,9 +1015,9 @@ sub compound_detailFn(){
 #  
 #  if ($compound ne "-") {
 #  
-#    my $devsLight = $hash->{helper}{$compound}{TYPE}{"light"} if ($hash->{helper}{$compound}{TYPE}{"light"});
-#    my $devsHeat = $hash->{helper}{$compound}{TYPE}{"heat"} if ($hash->{helper}{$compound}{TYPE}{"heat"});
-#    my $devsCam = $hash->{helper}{$compound}{TYPE}{"camera"} if ($hash->{helper}{$compound}{TYPE}{"camera"});
+#    my $devsLight = $hash->{helper}{DATA}{$compound}{TYPE}{"light"} if ($hash->{helper}{DATA}{$compound}{TYPE}{"light"});
+#    my $devsHeat = $hash->{helper}{DATA}{$compound}{TYPE}{"heat"} if ($hash->{helper}{DATA}{$compound}{TYPE}{"heat"});
+#    my $devsCam = $hash->{helper}{DATA}{$compound}{TYPE}{"camera"} if ($hash->{helper}{DATA}{$compound}{TYPE}{"camera"});
 #    
 #    my $options="";
 #    $options .= "<option value=\"".$devsLight."\">".$compound_tt->{"light"}."</option>\n" if ($devsLight);
@@ -973,6 +1064,9 @@ sub compound_PlanHtml(;$$$) {
     $rot .= " <script type=\"text/javascript\">
                 compound_tt={};
                 compound_tt.areyousure='".$compound_tt->{'areyousure'}."';
+                compound_tt.save='".$compound_tt->{'save'}."';
+                compound_tt.restore='".$compound_tt->{'restore'}."';
+                compound_tt.restoreconfirm='".$compound_tt->{'restoreconfirm'}."';
               </script>";
     # Javascript
     $rot .= "<script type=\"text/javascript\" src=\"$FW_ME/www/pgm2/compound.js?version=".$version."\"></script>
@@ -1046,10 +1140,10 @@ sub compound_PlanHtml(;$$$) {
       my $hash = $defs{$name};  
       my $compound=ReadingsVal($name,"compound","-");
       
-      my $lightDev = $hash->{helper}{$compound}{TYPE}{light} if ($hash->{helper}{$compound}{TYPE}{light});
-      my $heatDev = $hash->{helper}{$compound}{TYPE}{heat} if ($hash->{helper}{$compound}{TYPE}{heat});
-      my $camDev = $hash->{helper}{$compound}{TYPE}{camera} if ($hash->{helper}{$compound}{TYPE}{camera});
-      my $coolDev = $hash->{helper}{$compound}{TYPE}{cool} if ($hash->{helper}{$compound}{TYPE}{cool});
+      my $lightDev = $hash->{helper}{DATA}{$compound}{TYPE}{light} if ($hash->{helper}{DATA}{$compound}{TYPE}{light});
+      my $heatDev = $hash->{helper}{DATA}{$compound}{TYPE}{heat} if ($hash->{helper}{DATA}{$compound}{TYPE}{heat});
+      my $camDev = $hash->{helper}{DATA}{$compound}{TYPE}{camera} if ($hash->{helper}{DATA}{$compound}{TYPE}{camera});
+      my $coolDev = $hash->{helper}{DATA}{$compound}{TYPE}{cool} if ($hash->{helper}{DATA}{$compound}{TYPE}{cool});
     
       if ($compound ne "-") {     
         
@@ -1079,7 +1173,7 @@ sub compound_PlanHtml(;$$$) {
         $ret .= "<table class=\"roomoverview compound_table\">\n";
           
         $ret .= "<tr class=\"devTypeTr\"><td colspan=\"3\">\n".
-                " <div class=\"compound_devType col_header\">\n".
+                " <div class=\"compound_devType compound_devType_plan compound_devType_".$name." col_header\">\n".
                     $compound_tt->{"schedule"}.": ".(!$FW_hiddenroom{detail}?"<a title=\"\" href=\"/fhem?detail=".$name."\">":"").
                       AttrVal($name,"alias",$name).
                     (!$FW_hiddenroom{detail}?"</a>":"").
@@ -1116,10 +1210,10 @@ sub compound_PlanHtml(;$$$) {
           $num = $i;
           $month=$sM->{$num};
           
-          my $valueL = $hash->{helper}{plan}{$compound}{$hash->{helper}{$compound}{TYPE}{light}}{"$num"} if ($hash->{helper}{$compound}{TYPE}{light} && $hash->{helper}{plan}{$compound});
-          my $valueH = $hash->{helper}{plan}{$compound}{$hash->{helper}{$compound}{TYPE}{heat}}{"$num"} if ($hash->{helper}{$compound}{TYPE}{heat} && $hash->{helper}{plan}{$compound});
-          my $valueC = $hash->{helper}{plan}{$compound}{$hash->{helper}{$compound}{TYPE}{camera}}{"$num"} if ($hash->{helper}{$compound}{TYPE}{camera} && $hash->{helper}{plan}{$compound});
-          my $valueF = $hash->{helper}{plan}{$compound}{$hash->{helper}{$compound}{TYPE}{cool}}{"$num"} if ($hash->{helper}{$compound}{TYPE}{cool} && $hash->{helper}{plan}{$compound});
+          my $valueL = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{light}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{light} && $hash->{helper}{DATA}{plan}{$compound});
+          my $valueH = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{heat}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{heat} && $hash->{helper}{DATA}{plan}{$compound});
+          my $valueC = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{camera}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{camera} && $hash->{helper}{DATA}{plan}{$compound});
+          my $valueF = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{cool}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{cool} && $hash->{helper}{DATA}{plan}{$compound});
 
           
           $ret .= "<tr id=\"compound_plan_row_".$i."\" data-data=\"true\" data-line-id=\"".$i."\" class=\"sortit compound_plan ".$eo."\">\n".
@@ -1295,29 +1389,29 @@ sub compound_Html(;$$$) {
       my $heatDevice = "-";
       my $camDevice = "-";
       my $coolDevice = "-";
-      if ($hash->{helper}{$compound}{TYPE}{"light"}) {
-        $lightDevice = $hash->{helper}{$compound}{TYPE}{"light"};
+      if ($hash->{helper}{DATA}{$compound}{TYPE}{"light"}) {
+        $lightDevice = $hash->{helper}{DATA}{$compound}{TYPE}{"light"};
         $lightState = ReadingsVal($name,$lightDevice."_state","off");
         $stateL = $lightState eq "on"?"off":"on";
-        $lightState = FW_makeImage($lightState eq "on"?"light_light_dim_100\@yellow":"light_light_dim_00\@grey", ReadingsVal($name,$hash->{helper}{$compound}{TYPE}{"light"}."_state","off"));
+        $lightState = FW_makeImage($lightState eq "on"?"light_light_dim_100\@yellow":"light_light_dim_00\@grey", ReadingsVal($name,$hash->{helper}{DATA}{$compound}{TYPE}{"light"}."_state","off"));
       }
-      if ($hash->{helper}{$compound}{TYPE}{"heat"}) {
-        $heatDevice = $hash->{helper}{$compound}{TYPE}{"heat"};
+      if ($hash->{helper}{DATA}{$compound}{TYPE}{"heat"}) {
+        $heatDevice = $hash->{helper}{DATA}{$compound}{TYPE}{"heat"};
         $heatState = ReadingsVal($name,$heatDevice."_state","off");
         $stateH = $heatState eq "on"?"off":"on";
-        $heatState = FW_makeImage($heatState eq "on"?"sani_heating\@red":"sani_heating\@grey", ReadingsVal($name,$hash->{helper}{$compound}{TYPE}{"heat"}."_state","off"));
+        $heatState = FW_makeImage($heatState eq "on"?"sani_heating\@red":"sani_heating\@grey", ReadingsVal($name,$hash->{helper}{DATA}{$compound}{TYPE}{"heat"}."_state","off"));
       }
-      if ($hash->{helper}{$compound}{TYPE}{"camera"}) {
-        $camDevice = $hash->{helper}{$compound}{TYPE}{"camera"};
+      if ($hash->{helper}{DATA}{$compound}{TYPE}{"camera"}) {
+        $camDevice = $hash->{helper}{DATA}{$compound}{TYPE}{"camera"};
         $camState = ReadingsVal($name,$camDevice."_state","off");
         $stateCam = $camState eq "on"?"off":"on";
-        $camState = FW_makeImage($camState eq "on"?"it_camera\@#FF9900":"it_camera\@grey", ReadingsVal($name,$hash->{helper}{$compound}{TYPE}{"camera"}."_state","off"));
+        $camState = FW_makeImage($camState eq "on"?"it_camera\@#FF9900":"it_camera\@grey", ReadingsVal($name,$hash->{helper}{DATA}{$compound}{TYPE}{"camera"}."_state","off"));
       }
-      if ($hash->{helper}{$compound}{TYPE}{"cool"}) {
-        $coolDevice = $hash->{helper}{$compound}{TYPE}{"cool"};
+      if ($hash->{helper}{DATA}{$compound}{TYPE}{"cool"}) {
+        $coolDevice = $hash->{helper}{DATA}{$compound}{TYPE}{"cool"};
         $coolState = ReadingsVal($name,$coolDevice."_state","off");
         $stateF = $coolState eq "on"?"off":"on";
-        $coolState = FW_makeImage($coolState eq "on"?"weather_frost\@#FF9900":"weather_frost\@grey", ReadingsVal($name,$hash->{helper}{$compound}{TYPE}{"cool"}."_state","off"));
+        $coolState = FW_makeImage($coolState eq "on"?"weather_frost\@#FF9900":"weather_frost\@grey", ReadingsVal($name,$hash->{helper}{DATA}{$compound}{TYPE}{"cool"}."_state","off"));
       }
       my $stateC = $state eq "active"?"inactive":"active";
       
@@ -1368,12 +1462,12 @@ sub compound_Html(;$$$) {
               " </td>\n".
               " <td class=\"col2 compound_temp\">\n".
               "   <span class=\"compound_span compound_temp_span\" data-id=\"".$name."\">".
-                    ReadingsNum($name,$hash->{helper}{$compound}{tempDevice}."_temperature",0)."°C".
+                    ReadingsNum($name,$hash->{helper}{DATA}{$compound}{tempDevice}."_temperature",0)."°C".
               "   </span>\n".
               " </td>\n".
               " <td class=\"col2 compound_hum\">\n".
               "   <span class=\"compound_span compound_hum_span\" data-id=\"".$name."\">".
-                    ReadingsNum($name,$hash->{helper}{$compound}{tempDevice}."_humidity",0)."%".
+                    ReadingsNum($name,$hash->{helper}{DATA}{$compound}{tempDevice}."_humidity",0)."%".
               "   </span>\n".
               " </td>\n".
               "</tr>\n";

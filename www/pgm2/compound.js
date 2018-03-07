@@ -8,6 +8,11 @@
   var csrfToken = req.getResponseHeader('X-FHEM-csrfToken');
 
   var compound_icon={};
+  
+  var compound_svgPrefix='<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path ';
+  
+  compound_icon.save=compound_svgPrefix+'d="M433.941 129.941l-83.882-83.882A48 48 0 0 0 316.118 32H48C21.49 32 0 53.49 0 80v352c0 26.51 21.49 48 48 48h352c26.51 0 48-21.49 48-48V163.882a48 48 0 0 0-14.059-33.941zM272 80v80H144V80h128zm122 352H54a6 6 0 0 1-6-6V86a6 6 0 0 1 6-6h42v104c0 13.255 10.745 24 24 24h176c13.255 0 24-10.745 24-24V83.882l78.243 78.243a6 6 0 0 1 1.757 4.243V426a6 6 0 0 1-6 6zM224 232c-48.523 0-88 39.477-88 88s39.477 88 88 88 88-39.477 88-88-39.477-88-88-88zm0 128c-22.056 0-40-17.944-40-40s17.944-40 40-40 40 17.944 40 40-17.944 40-40 40z"/></svg>';
+  compound_icon.restore=compound_svgPrefix+'d="M527.943 224H480v-48c0-26.51-21.49-48-48-48H272l-64-64H48C21.49 64 0 85.49 0 112v288c0 26.51 21.49 48 48 48h400a48.001 48.001 0 0 0 40.704-22.56l79.942-128c19.948-31.917-3.038-73.44-40.703-73.44zM54 112h134.118l64 64H426a6 6 0 0 1 6 6v42H152a48 48 0 0 0-41.098 23.202L48 351.449V117.993A5.993 5.993 0 0 1 54 112zm394 288H72l77.234-128H528l-80 128z"/></svg>';
 
   compound_icon.loading='<svg xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.0" viewBox="0 0 128 128" xml:space="preserve"><g transform="rotate(-32.1269 64 64)"><path d="M78.75 16.18V1.56a64.1 64.1 0 0 1 47.7 47.7H111.8a49.98 49.98 0 0 0-33.07-33.08zM16.43 49.25H1.8a64.1 64.1 0 0 1 47.7-47.7V16.2a49.98 49.98 0 0 0-33.07 33.07zm33.07 62.32v14.62A64.1 64.1 0 0 1 1.8 78.5h14.63a49.98 49.98 0 0 0 33.07 33.07zm62.32-33.07h14.62a64.1 64.1 0 0 1-47.7 47.7v-14.63a49.98 49.98 0 0 0 33.08-33.07z" fill-opacity="1"/><animateTransform attributeName="transform" type="rotate" from="0 64 64" to="-90 64 64" dur="1800ms" repeatCount="indefinite"/></g></svg>';
 
@@ -86,6 +91,7 @@
     $('div.compound_plan_outer_container').find('div.compound_plan_container').remove();
     $('div.compound_plan_outer_container').html(val);
     compound_removeLoading();
+    compound_addHeaders();
   }
   
   function resizable (el, factor) {
@@ -105,8 +111,14 @@
     }
     return false;
   }
+  
+  function compound_addHeaders() {
+    $("<div class='compound_save compound_icon' title='" + compound_tt.save + "'> </div>").appendTo($('.compound_devType_plan')).html(compound_icon.save);
+    $("<div class='compound_restore compound_icon' title='" + compound_tt.restore + "'> </div>").appendTo($('.compound_devType_plan')).html(compound_icon.restore);
+  }
 
   $(document).ready(function(){
+    compound_addHeaders();
     $('.compound_on-till_container').on('click','.set',function(e) {
       compound_setTimer(this);
     });
@@ -130,6 +142,14 @@
         var val = $(this).attr('data-do');
         compound_sendCommand('set ' + name + ' ' +  val);
         return false;
+      });
+      $('div.compound_plan_outer_container').on('click','.compound_devType_' + name +' div.compound_save',function(e) {
+        compound_sendCommand('set ' + name + ' save');
+      });
+      $('div.compound_plan_outer_container').on('click','.compound_devType_' + name +' div.compound_restore',function(e) {
+        if (confirm(compound_tt.restoreconfirm)) {
+          compound_sendCommand('set ' + name + ' restore');
+        }
       });
       $('#compound_schaltung_table').on('click','td.compound_switch_'+name+' span',function(e) {
         var val = $(this).attr('data-do');
