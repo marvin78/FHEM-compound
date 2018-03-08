@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.74";
+my $version = "0.9.76";
 
 my %gets = (
   "version:noArg"     => "",
@@ -95,6 +95,7 @@ my $compound_month;
 
 sub compound_checkTemp($$;$);
 sub compound_setOff($$;$);
+sub compound_SetPlan($;$);
 
 sub compound_Initialize($) { 
   my ($hash) = @_;
@@ -513,7 +514,7 @@ sub compound_Set($@)
       my $do = join(" ", @args);
       if ($tPlan ne $do) {
         readingsSingleUpdate($hash,$cmd,$do,1);
-        compound_SetPlan($hash);
+        compound_SetPlan($hash,$tPlan);
         compound_RestartGetTimer($hash);
       }
       else {
@@ -539,34 +540,71 @@ sub compound_Set($@)
 }
 
 # set the plan in hash
-sub compound_SetPlan($) {
-  my ($hash) = @_;
+sub compound_SetPlan($;$) {
+  my ($hash,$oPlan) = @_;
   
   my $name=$hash->{NAME};
+  my $error = "none";
+  
+  $oPlan = "-" if (!defined($oPlan));
   
   if ($hash->{DEVICES}) {
     
-    foreach(@{$hash->{DEVICES}}) {
+    foreach my $dev (@{$hash->{DEVICES}}) {
       
-      my @plans = split(/(\n|\r)/m,ReadingsVal($name,$_."_plan","-"));
+      Log3 $name, 5, "$name: Plan Reading: ".ReadingsVal($name,$dev."_plan","-");
       
-      Log3 $name, 5, "$name: ".Dumper(@plans);
+      my @plans = split(/\n/,ReadingsVal($name,$dev."_plan","-"));
+      
+      Log3 $name, 4, "$name: Dump Plan: ".Dumper(@plans);
       
       my @planArr;
-      foreach (@plans) {
-         my @mon = split(/ /,$_,2);
-         $planArr[int($mon[0])] = $mon[1] if ($mon[0]=~/^-?\d+$/);
-      }
-      
-      for(my $i=1;$i<=12;$i++) {
-        #my $t = sprintf ('%02d',$i);
-        if (defined($planArr[$i])) {
-          $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$_}}{$_}{$i} = $planArr[$i];
+      $error = "none";
+      foreach my $line (@plans) {
+        Log3 $name, 4, "compound [$name]: Line: $line";
+        if ($line =~ /^(0?[1-9]|1[012])\ .*$/g) {
+          my @mon = split(/ /,$line,2);
+          Log3 $name, 4, "compound [$name]: Mon Dumper: ".Dumper(@mon);
+          $line =~ s/^\s+|\s+$//g;
+          if ($line =~ /^(0?[1-9]|1[012])(\ (([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?|(24:00:00))\|(-|-?\d+))+$/) {
+            $planArr[int($mon[0])] = $mon[1] if ($mon[0]=~/^\d+$/);
+            Log3 $name, 4, "compound [$name]: Mon Dumper $mon[0]: ".Dumper($planArr[int($mon[0])]);
+          }
+          else {
+            if ($mon[0]=~/^\d+$/ && $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{int($mon[0])}) {
+              $planArr[int($mon[0])] = $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{int($mon[0])};
+            }
+            else {
+              $planArr[int($mon[0])] = "-";
+            }
+            Log3 $name, 4, "compound [$name]: Mon Dumper $mon[0]: ".Dumper($planArr[int($mon[0])]); 
+          }
         }
         else {
-          $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$_}}{$_}{$i}  = $planArr[13] if (defined($planArr[13]));
-          $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$_}}{$_}{$i}  = "-" if (!defined($planArr[13]));
+          $planArr[13] = "-";
+          $error = "plan";
+          readingsSingleUpdate( $hash,"lastError","plan has not the right format ($dev)",1 );
+          Log3 $name, 4, "compound [$name]: plan has not the right format ($dev)";
         }
+      }
+      
+      Log3 $name, 4, "compound [$name]: Error: ".$error;
+      
+      if ($error eq "none") {
+        for(my $i=1;$i<=12;$i++) {
+          #my $t = sprintf ('%02d',$i);
+          if (defined($planArr[$i])) {
+            $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{$i} = $planArr[$i];
+            Log3 $name, 4, "compound [$name]: Mon Dumper $i: ".Dumper($planArr[$i]);
+          }
+          else {
+            $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{$i}  = $planArr[13] if (defined($planArr[13]));
+            $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{$i}  = "-" if (!defined($planArr[13]));
+          }
+        }
+      }
+      else {
+        #readingsSingleUpdate( $hash,$dev."_plan",$oPlan,1);
       }
       map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_removeLoading === \"function\") compound_removeLoading()", "")} devspec2array("TYPE=FHEMWEB");
     }
