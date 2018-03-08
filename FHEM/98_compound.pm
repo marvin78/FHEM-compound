@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.78";
+my $version = "0.9.79";
 
 my %gets = (
   "version:noArg"     => "",
@@ -1280,10 +1280,15 @@ sub compound_PlanHtml(;$$$) {
           $num = $i;
           $month=$sM->{$num};
           
-          my $valueL = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{light}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{light} && $hash->{helper}{DATA}{plan}{$compound});
-          my $valueH = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{heat}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{heat} && $hash->{helper}{DATA}{plan}{$compound});
-          my $valueC = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{camera}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{camera} && $hash->{helper}{DATA}{plan}{$compound});
-          my $valueF = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{cool}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{cool} && $hash->{helper}{DATA}{plan}{$compound});
+          my $valueL="-";
+          my $valueH="-";
+          my $valueC="-";
+          my $valueF="-";
+          
+          $valueL = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{light}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{light} && $hash->{helper}{DATA}{plan}{$compound});
+          $valueH = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{heat}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{heat} && $hash->{helper}{DATA}{plan}{$compound});
+          $valueC = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{camera}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{camera} && $hash->{helper}{DATA}{plan}{$compound});
+          $valueF = $hash->{helper}{DATA}{plan}{$compound}{$hash->{helper}{DATA}{$compound}{TYPE}{cool}}{"$num"} if ($hash->{helper}{DATA}{$compound}{TYPE}{cool} && $hash->{helper}{DATA}{plan}{$compound});
 
           
           $ret .= "<tr id=\"compound_plan_row_".$i."\" data-data=\"true\" data-line-id=\"".$i."\" class=\"sortit compound_plan ".$eo."\">\n".
