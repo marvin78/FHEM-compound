@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.73";
+my $version = "0.9.74";
 
 my %gets = (
   "version:noArg"     => "",
@@ -555,7 +555,7 @@ sub compound_SetPlan($) {
       my @planArr;
       foreach (@plans) {
          my @mon = split(/ /,$_,2);
-         $planArr[int($mon[0])] = $mon[1];
+         $planArr[int($mon[0])] = $mon[1] if ($mon[0]=~/^-?\d+$/);
       }
       
       for(my $i=1;$i<=12;$i++) {
@@ -840,7 +840,21 @@ sub compound_checkTemp($$;$) {
               my @planTime = split(":",$d[0]);
               @planTime=(23,59,59) if ($planTime[0]==24);
               $planTime[2]=0 unless defined($planTime[2]);
-              my $aPlanTime = timelocal(int($planTime[2]),int($planTime[1]),int($planTime[0]),$mday,$month,$year);
+              
+              my $planSec = 0;
+              if (compound_isNumeric($planTime[2])) {
+                $planSec = (int($planTime[2])>60 || int($planTime[2])<0)?0:int($planTime[2]);              
+              }
+              my $planMin = 0;
+              if (compound_isNumeric($planTime[1])) {
+                $planMin = (int($planTime[1])>60 || int($planTime[1])<0)?0:int($planTime[1]);              
+              }
+              my $planStd = 0;
+              if (compound_isNumeric($planTime[0])) {
+                $planStd = (int($planTime[0])>24 || int($planTime[0])<0)?0:int($planTime[0]);              
+              }
+              
+              my $aPlanTime = timelocal($planSec,$planMin,int($planTime[0]),$mday,$month,$year);
               my $refTime = timelocal($oldTime[2],$oldTime[1],$oldTime[0],$mday,$month,$year);
               
               Log3 $name, 5, "$name: Check temperature for device $dev ($plan) with new temperature $temp and $time and ".$d[0]." and ".$d[1]." and $refTime and $aPlanTime" if (defined($temp));
@@ -1520,6 +1534,13 @@ sub compound_abstime2rel($) {
   $diff += 86400 if($diff <= 0);
 
   return $diff;
+}
+
+sub compound_isNumeric {
+	my $f = shift();
+	if ($f =~ /^(\d+\.?\d*|\.\d+)$/) { return 1; }
+
+	return 0;
 }
 
 1;
