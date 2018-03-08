@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.76";
+my $version = "0.9.77";
 
 my %gets = (
   "version:noArg"     => "",
@@ -545,6 +545,7 @@ sub compound_SetPlan($;$) {
   
   my $name=$hash->{NAME};
   my $error = "none";
+  my $smerror = "none";
   
   $oPlan = "-" if (!defined($oPlan));
   
@@ -560,6 +561,7 @@ sub compound_SetPlan($;$) {
       
       my @planArr;
       $error = "none";
+      $smerror = "none";
       foreach my $line (@plans) {
         Log3 $name, 4, "compound [$name]: Line: $line";
         if ($line =~ /^(0?[1-9]|1[012])\ .*$/g) {
@@ -571,6 +573,7 @@ sub compound_SetPlan($;$) {
             Log3 $name, 4, "compound [$name]: Mon Dumper $mon[0]: ".Dumper($planArr[int($mon[0])]);
           }
           else {
+            $smerror = "plan";
             if ($mon[0]=~/^\d+$/ && $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{int($mon[0])}) {
               $planArr[int($mon[0])] = $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{int($mon[0])};
             }
@@ -603,8 +606,15 @@ sub compound_SetPlan($;$) {
           }
         }
       }
-      else {
-        #readingsSingleUpdate( $hash,$dev."_plan",$oPlan,1);
+      if ($smerror eq "plan") {
+        my $temp="";
+        for(my $i=1;$i<=12;$i++) {
+          if ($hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{$i}) {
+            $temp .= $i." ".$hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{$i};
+            $temp .= "\n" if ($i!=12);
+          }
+        } 
+        readingsSingleUpdate($hash,$dev."_plan",$temp,1);
       }
       map {FW_directNotify("#FHEMWEB:$_", "if (typeof compound_removeLoading === \"function\") compound_removeLoading()", "")} devspec2array("TYPE=FHEMWEB");
     }
