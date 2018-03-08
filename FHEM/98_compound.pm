@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.77";
+my $version = "0.9.78";
 
 my %gets = (
   "version:noArg"     => "",
@@ -568,7 +568,7 @@ sub compound_SetPlan($;$) {
           my @mon = split(/ /,$line,2);
           Log3 $name, 4, "compound [$name]: Mon Dumper: ".Dumper(@mon);
           $line =~ s/^\s+|\s+$//g;
-          if ($line =~ /^(0?[1-9]|1[012])(\ (([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?|(24:00:00))\|(-|-?\d+))+$/) {
+          if ($line =~ /^(0?[1-9]|1[012])(\ (([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?|(24:00:00))\|(-|-?\d+))+$/ || $line eq "-") {
             $planArr[int($mon[0])] = $mon[1] if ($mon[0]=~/^\d+$/);
             Log3 $name, 4, "compound [$name]: Mon Dumper $mon[0]: ".Dumper($planArr[int($mon[0])]);
           }
