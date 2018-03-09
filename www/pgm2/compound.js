@@ -197,10 +197,14 @@
         });
       });
       $('div.compound_plan_outer_container').on('blur keypress','input.compound_plan_input_' + name,function(e) {
-        if (e.which==13 && e.type=='keypress') {
+        var tid = $(this).attr("data-tid");
+        if (e.type=="blur" || e.type=="focusout") {
+          $(this).hide();
+          $("span.compound_plan_text_" + name +"[data-tid='" + tid +"']").show();
+        }
+        else if (e.which==13 && e.type=='keypress') {
           var tVal = $(this).val();
           var id = this.id;
-          var tid = $(this).attr("data-tid");
           var dev = $(this).attr('data-name');
           if (tVal!="" && dev!="") {
             var type="light";
@@ -221,7 +225,7 @@
             compound_sendCommand('set ' + name + ' ' + dev + '_plan ' +  data);
           }
         }
-        if (e.type=='keypress' && e.which!=13) {
+        else if (e.type=='keypress' && e.which!=13) {
           resizable(this,7);
         }
       });

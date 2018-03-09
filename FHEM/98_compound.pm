@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.83";
+my $version = "0.9.84";
 
 my %gets = (
   "version:noArg"     => "",
