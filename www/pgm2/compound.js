@@ -160,11 +160,25 @@
         if (confirm(compound_tt.areyousure)) {
           var id = $(this).attr('data-id');
           var val = $(this).prev().find('input').val();
-          if (id == "copy_light_"+name) $('#compound_data_body_' + name + ' .compound_lightInput').val(val);
-          if (id == "copy_heat_"+name) $('#compound_data_body_' + name + ' .compound_heatInput').val(val);
-          if (id == "copy_cam_"+name) $('#compound_data_body_' + name + ' .compound_camInput').val(val);
-          if (id == "copy_cool_"+name) $('#compound_data_body_' + name + ' .compound_coolInput').val(val);
-          $(this).prev().find('input').trigger( "blur" );
+          if (id == "copy_light_"+name) {
+             $('#compound_data_body_' + name + ' .compound_lightInput').val(val);
+             $('#compound_data_body_' + name + ' .compound_plan_light_text').html(val);
+          }
+          if (id == "copy_heat_"+name) {
+            $('#compound_data_body_' + name + ' .compound_heatInput').val(val);
+            $('#compound_data_body_' + name + ' .compound_plan_heat_text').html(val);
+          }
+          if (id == "copy_cam_"+name) {
+            $('#compound_data_body_' + name + ' .compound_camInput').val(val);
+            $('#compound_data_body_' + name + ' .compound_plan_cam_text').html(val);
+          }
+          if (id == "copy_cool_"+name) {
+            $('#compound_data_body_' + name + ' .compound_coolInput').val(val);
+            $('#compound_data_body_' + name + ' .compound_plan_cool_text').html(val);
+          }
+          var e = jQuery.Event("keypress");
+          e.which = 13;
+          $(this).prev().find('input').show().trigger(e);
         }
         return false;
       });

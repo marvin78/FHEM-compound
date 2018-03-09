@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.82";
+my $version = "0.9.83";
 
 my %gets = (
   "version:noArg"     => "",
@@ -1298,28 +1298,28 @@ sub compound_PlanHtml(;$$$) {
                   " </td>\n".
                   ($lightDev?"  <td class=\"col1 compound_plan_light\">\n".
                   "   <span class=\"compound_plan_light_text compound_plan_text_".$name."\" data-tid=\"".$lightDev."_".$i."\" data-name=\"".$lightDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueL."</span>\n".
-                  "   <input type=\"text\" style=\"display:none;\" data-tid=\"".$lightDev."_".$i."\" data-name=\"".$lightDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_lightInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueL."\" />\n".
+                  "   <input type=\"text\"".($valueL ne ""?" style=\"display:none;\"":"")." data-tid=\"".$lightDev."_".$i."\" data-name=\"".$lightDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_lightInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueL."\" />\n".
                   " </td>\n".
                   " <td data-id=\"copy_light_".$name."\" class=\"col2 doDown light_down doDown_".$name."\">".
                   ($i==1?"↓":"&nbsp;").
                   " </td>\n":"").
                   ($heatDev?" <td class=\"col1 compound_plan_heat\">\n".
-                  "   <span class=\"compound_plan_light_text compound_plan_text_".$name."\" data-tid=\"".$heatDev."_".$i."\" data-name=\"".$heatDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueH."</span>\n".
-                  "   <input type=\"text\" style=\"display:none;\" data-tid=\"".$heatDev."_".$i."\" data-name=\"".$heatDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_heatInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueH."\" />\n".
+                  "   <span class=\"compound_plan_heat_text compound_plan_text_".$name."\" data-tid=\"".$heatDev."_".$i."\" data-name=\"".$heatDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueH."</span>\n".
+                  "   <input type=\"text\"".($valueH ne ""?" style=\"display:none;\"":"")." data-tid=\"".$heatDev."_".$i."\" data-name=\"".$heatDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_heatInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueH."\" />\n".
                   " </td>\n".
                   " <td data-id=\"copy_heat_".$name."\" class=\"col2 doDown heat_down doDown_".$name."\">".
                   ($i==1?"↓":"&nbsp;").
                   " </td>\n":"").
                   ($camDev?"  <td class=\"col1 compound_plan_cam\">\n".
-                  "   <span class=\"compound_plan_light_text compound_plan_text_".$name."\" data-tid=\"".$camDev."_".$i."\" data-name=\"".$camDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueC."</span>\n".
-                  "   <input type=\"text\" style=\"display:none;\" data-tid=\"".$camDev."_".$i."\" data-name=\"".$camDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_camInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueC."\" />\n".
+                  "   <span class=\"compound_plan_cam_text compound_plan_text_".$name."\" data-tid=\"".$camDev."_".$i."\" data-name=\"".$camDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueC."</span>\n".
+                  "   <input type=\"text\"".($valueC ne ""?" style=\"display:none;\"":"")." data-tid=\"".$camDev."_".$i."\" data-name=\"".$camDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_camInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueC."\" />\n".
                   " </td>\n".
                   " <td data-id=\"copy_cam_".$name."\" class=\"col2 doDown cam_down doDown_".$name."\">".
                   ($i==1?"↓":"&nbsp;").
                   " </td>\n":"").
                   ($coolDev?" <td class=\"col1 compound_plan_cool\">\n".
-                  "   <span class=\"compound_plan_light_text compound_plan_text_".$name."\" data-tid=\"".$coolDev."_".$i."\" data-name=\"".$coolDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueF."</span>\n".
-                  "   <input type=\"text\" style=\"display:none;\" data-tid=\"".$coolDev."_".$i."\" data-name=\"".$coolDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_coolInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueF."\" />\n".
+                  "   <span class=\"compound_plan_cool_text compound_plan_text_".$name."\" data-tid=\"".$coolDev."_".$i."\" data-name=\"".$coolDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$valueF."</span>\n".
+                  "   <input type=\"text\"".$valueF ne ""?" style=\"display:none;\"":""." data-tid=\"".$coolDev."_".$i."\" data-name=\"".$coolDev."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_coolInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$valueF."\" />\n".
                   " </td>\n".
                   " <td data-id=\"copy_cool_".$name."\" class=\"col2 doDown cool_down doDown_".$name."\">".
                   ($i==1?"↓":"&nbsp;").
