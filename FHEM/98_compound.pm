@@ -10,12 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.84";
-
-my %gets = (
-  "version:noArg"     => "",
-  #"status:noArg"     => "",
-); 
+my $version = "0.9.85";
 
 ## define variables for multi language
 my %compound_transtable_EN = ( 
@@ -430,13 +425,27 @@ sub compound_Attr(@) {
 sub compound_Get($@) {
   my ($hash, $name, $cmd, @args) = @_;
   my $ret = undef;
+  my $retDev = "";
+   
+  my $compound = ReadingsVal($name,"compound","-");
+  
+  if ($compound  ne "-") {
+    my $devices = join(',',@{$hash->{helper}{DATA}{$compound}{"devices"}});
+    $retDev .= " plan:".$devices;
+  }
   
   if ( $cmd eq "version") {
     $hash->{VERSION} = $version;
     return "Version: ".$version;
+    Log3 $name, 4, "compound [$name]: got version ".$version;
+  }
+  elsif ( $cmd eq "plan") {
+    my $dev = join(" ",@args);
+    $ret = ReadingsVal($name,$dev."_plan","-");
+    Log3 $name, 4, "compound [$name]: got plan for ".$dev;
   }
   else {
-    $ret ="$name get with unknown argument $cmd, choose one of " . join(" ", sort keys %gets);
+    $ret = "$name get with unknown argument $cmd, choose one of version:noArg".$retDev;
   }
  
   return $ret;
@@ -490,7 +499,7 @@ sub compound_Set($@)
       RemoveInternalTimer($hash) if ($cmd eq "inactive");
       compound_setCompound($hash,$name,$compound) if ($cmd eq "active");
       $attr{$name}{"disable"} = 0 if (AttrVal($name,"disable",0) == 1);
-      Log3 $name, 3, "$name: set Device $cmd";
+      Log3 $name, 3, "compound [$name]: set Device $cmd";
       compound_ReloadPlan($name);
       compound_ReloadTable();
       compound_SetDeviceTypes($hash);
@@ -1225,19 +1234,21 @@ sub compound_PlanHtml(;$$$) {
         my $time = $timeArr[0].":".$timeArr[1];
         
         if (!$refreshGet) {
-          $ret .= "<div class=\"compound_plan_container_div\">";
-          $ret .= "<div class=\"compound_on-till_container\" data-name=\"".$name."\">\n";
-          $ret .= " <a href=\"#\" class=\"set\">set</a>";
-          $ret .= " <select name=\"set_compound_device\" class=\"set_compound_device\">\n";
-          $ret .= "  ".$options;
-          $ret .= " </select>\n";
-          $ret .= " <select name=\"set_compound_type\" class=\"set_compound_type\">\n";
-          $ret .= "  <option value=\"on-till\">on-till</option>\n";
-          $ret .= "  <option value=\"on-for-timer\">on-for-timer</option>\n";
-          $ret .= " </select>\n";
-          $ret .= " <input type=\"time\" value=\"".$time."\" class=\"set_compound_timer\" />\n";
-          $ret .= " <input type=\"hidden\" value=\"".$time."\" class=\"set_compound_timer_hidden\" />\n";
-          $ret .= "</div><br />\n";
+          if ($detail!=2) {
+            $ret .= "<div class=\"compound_plan_container_div\">";
+            $ret .= "<div class=\"compound_on-till_container\" data-name=\"".$name."\">\n";
+            $ret .= " <a href=\"#\" class=\"set\">set</a>";
+            $ret .= " <select name=\"set_compound_device\" class=\"set_compound_device\">\n";
+            $ret .= "  ".$options;
+            $ret .= " </select>\n";
+            $ret .= " <select name=\"set_compound_type\" class=\"set_compound_type\">\n";
+            $ret .= "  <option value=\"on-till\">on-till</option>\n";
+            $ret .= "  <option value=\"on-for-timer\">on-for-timer</option>\n";
+            $ret .= " </select>\n";
+            $ret .= " <input type=\"time\" value=\"".$time."\" class=\"set_compound_timer\" />\n";
+            $ret .= " <input type=\"hidden\" value=\"".$time."\" class=\"set_compound_timer_hidden\" />\n";
+            $ret .= "</div><br />\n";
+          }
           
           $ret .= "<div class=\"compound_plan_container\">\n";
           $ret .= "<table class=\"roomoverview compound_table\">\n";
