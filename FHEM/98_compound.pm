@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.80";
+my $version = "0.9.82";
 
 my %gets = (
   "version:noArg"     => "",
@@ -574,20 +574,21 @@ sub compound_SetPlan($;$) {
           }
           else {
             $smerror = "plan";
+            Log3 $name, 2, "compound [$name]: Plan line has not the right format: ".$line; 
             if ($mon[0]=~/^\d+$/ && $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{int($mon[0])}) {
               $planArr[int($mon[0])] = $hash->{helper}{DATA}{plan}{$hash->{helper}{DATA}{devices}{$dev}}{$dev}{int($mon[0])};
             }
             else {
               $planArr[int($mon[0])] = "-";
             }
-            Log3 $name, 4, "compound [$name]: Mon Dumper $mon[0]: ".Dumper($planArr[int($mon[0])]); 
+            readingsSingleUpdate( $hash,"lastError","plan has not the right format ($dev|".int($mon[0]).")",1 );
           }
         }
         else {
           $planArr[13] = "-";
           $error = "plan";
           readingsSingleUpdate( $hash,"lastError","plan has not the right format ($dev)",1 );
-          Log3 $name, 4, "compound [$name]: plan has not the right format ($dev)";
+          Log3 $name, 2, "compound [$name]: plan has not the right format ($dev)";
         }
       }
       

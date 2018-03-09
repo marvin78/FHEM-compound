@@ -183,7 +183,7 @@
         });
       });
       $('div.compound_plan_outer_container').on('blur keypress','input.compound_plan_input_' + name,function(e) {
-        if (e.type!='keypress' || e.which==13) {
+        if (e.which==13 && e.type=='keypress') {
           var tVal = $(this).val();
           var id = this.id;
           var tid = $(this).attr("data-tid");
@@ -207,7 +207,7 @@
             compound_sendCommand('set ' + name + ' ' + dev + '_plan ' +  data);
           }
         }
-        if (e.type=='keypress') {
+        if (e.type=='keypress' && e.which!=13) {
           resizable(this,7);
         }
       });
