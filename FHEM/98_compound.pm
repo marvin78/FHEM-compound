@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.92";
+my $version = "0.9.93";
 
 my %pTypes;
 
@@ -42,8 +42,8 @@ $pTypes{"sprinkler"}{"sort"}=3;
 $pTypes{"sprinkler"}{"checkType"}="lt";
 $pTypes{"sprinkler"}{"lang"}{"EN"}{"name"}="Sprinkler";
 $pTypes{"sprinkler"}{"lang"}{"DE"}{"name"}="Beregnung";
-$pTypes{"cool"}{"icons"}{"on"}="sani_sprinkling\@#1a9ce2";
-$pTypes{"cool"}{"icons"}{"off"}="sani_sprinkling\@grey";
+$pTypes{"sprinkler"}{"icons"}{"on"}="sani_sprinkling\@#1a9ce2";
+$pTypes{"sprinkler"}{"icons"}{"off"}="sani_sprinkling\@grey";
 
 ## define variables for multi language
 my %compound_transtable_EN = ( 
