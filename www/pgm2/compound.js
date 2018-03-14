@@ -129,11 +129,13 @@
       var name = $(this).val();
       $('.compound_plan_outer_container').on('click','.compound_on-till_container[data-name=' + name + '] .set',function(e) {
         compound_setTimer(this);
+        return false;
       });
       $('.compound_plan_outer_container').on('keypress','.compound_on-till_container[data-name=' + name + '] .set_compound_timer',function(e) {
         if (e.which==13) {
           compound_setTimer(this);
         }
+        return false;
       });
       $('#compound_schaltung_table').on('click','span.compound_status_span_'+name,function(e) {
         var val = $(this).attr('data-do');
@@ -168,9 +170,9 @@
             $('#compound_data_body_' + name + ' .compound_heatInput').val(val);
             $('#compound_data_body_' + name + ' .compound_plan_heat_text').html(val);
           }
-          if (id == "copy_cam_"+name) {
-            $('#compound_data_body_' + name + ' .compound_camInput').val(val);
-            $('#compound_data_body_' + name + ' .compound_plan_cam_text').html(val);
+          if (id == "copy_camera_"+name) {
+            $('#compound_data_body_' + name + ' .compound_cameraInput').val(val);
+            $('#compound_data_body_' + name + ' .compound_plan_camera_text').html(val);
           }
           if (id == "copy_cool_"+name) {
             $('#compound_data_body_' + name + ' .compound_coolInput').val(val);
@@ -209,8 +211,9 @@
           if (tVal!="" && dev!="") {
             var type="light";
             if ($(this).hasClass('compound_heatInput')) type="heat";
-            else if ($(this).hasClass('compound_camInput')) type="cam";
+            else if ($(this).hasClass('compound_cameraInput')) type="cam";
             else if ($(this).hasClass('compound_coolInput')) type="cool";
+            else if ($(this).hasClass('compound_sprinklerInput')) type="sprinkler";
             var arr=[];
             $('#compound_data_body_'+name+' .compound_'+type+'Input').each(function() {
               var no = $(this).attr('data-no');

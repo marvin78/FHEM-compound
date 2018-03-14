@@ -10,26 +10,40 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.86";
+my $version = "0.9.92";
 
 my %pTypes;
 
+$pTypes{"light"}{"sort"}=1;
 $pTypes{"light"}{"checkType"}="lt";
 $pTypes{"light"}{"lang"}{"EN"}{"name"}="Light";
 $pTypes{"light"}{"lang"}{"DE"}{"name"}="Licht";
+$pTypes{"light"}{"icons"}{"on"}="light_light_dim_100\@yellow";
+$pTypes{"light"}{"icons"}{"off"}="light_light_dim_00\@grey";
+$pTypes{"heat"}{"sort"}=2;
 $pTypes{"heat"}{"checkType"}="lt";
 $pTypes{"heat"}{"lang"}{"EN"}{"name"}="Heating";
 $pTypes{"heat"}{"lang"}{"DE"}{"name"}="Heizung";
+$pTypes{"heat"}{"icons"}{"on"}="sani_heating\@red";
+$pTypes{"heat"}{"icons"}{"off"}="sani_heating\@grey";
+$pTypes{"camera"}{"sort"}=5;
 $pTypes{"camera"}{"checkType"}="lt";
 $pTypes{"camera"}{"lang"}{"EN"}{"name"}="Camera";
 $pTypes{"camera"}{"lang"}{"DE"}{"name"}="Kamera";
+$pTypes{"camera"}{"icons"}{"on"}="it_camera\@#FF9900";
+$pTypes{"camera"}{"icons"}{"off"}="it_camera\@grey";
+$pTypes{"cool"}{"sort"}=4;
 $pTypes{"cool"}{"checkType"}="gt";
 $pTypes{"cool"}{"lang"}{"EN"}{"name"}="Cooling";
 $pTypes{"cool"}{"lang"}{"DE"}{"name"}="Kühlung";
+$pTypes{"cool"}{"icons"}{"on"}="weather_frost\@#FF9900";
+$pTypes{"cool"}{"icons"}{"off"}="weather_frost\@grey";
+$pTypes{"sprinkler"}{"sort"}=3;
 $pTypes{"sprinkler"}{"checkType"}="lt";
 $pTypes{"sprinkler"}{"lang"}{"EN"}{"name"}="Sprinkler";
 $pTypes{"sprinkler"}{"lang"}{"DE"}{"name"}="Beregnung";
-
+$pTypes{"cool"}{"icons"}{"on"}="sani_sprinkling\@#1a9ce2";
+$pTypes{"cool"}{"icons"}{"off"}="sani_sprinkling\@grey";
 
 ## define variables for multi language
 my %compound_transtable_EN = ( 
@@ -251,7 +265,7 @@ sub compound_Define($$) {
   Log3 $name, 5, "$name: COUNT set to $i";
   
   if ($init_done) {
-    readingsSingleUpdate($hash,"state","inactive",1) if(ReadingsVal($name,"state","active") eq "active");
+    #readingsSingleUpdate($hash,"state","inactive",1) if(ReadingsVal($name,"state","active") eq "active");
     RemoveInternalTimer($hash);
     compound_SetPlan($hash);
     $hash->{NOTIFYDEV} = "global,".join(",",@{$hash->{helper}{DATA}{$co}{"compDevices"}}) if ($co ne "-" && defined($hash->{helper}{DATA}{$co}{"compDevices"}));
@@ -456,7 +470,7 @@ sub compound_Get($@) {
   my $compound = ReadingsVal($name,"compound","-");
   
   if ($compound  ne "-") {
-    my $devices = join(',',@{$hash->{helper}{DATA}{$compound}{"devices"}});
+    my $devices = join(',',@{$hash->{helper}{DATA}{$compound}{"devices"}}) if ($hash->{helper}{DATA}{$compound}{"devices"} && ref($hash->{helper}{DATA}{$compound}{"devices"}) eq "ARRAY" );
     $retDev .= " plan:".$devices;
   }
   
@@ -674,7 +688,7 @@ sub compound_Save($) {
   my $json   = JSON->new->utf8;
     
   my $jhash = eval{ $json->encode(  $hash->{helper}{DATA} ) };
-  Log3 $name,1,"compound [$name]: jhash: ".Dumper($jhash);
+  Log3 $name,4,"compound [$name]: jhash: ".Dumper($jhash);
   my $error  = FileWrite("./log/compound_".$name,$jhash);
   
   
@@ -704,7 +718,7 @@ sub compound_Restore($) {
   delete($hash->{helper}{DATA});
   
   $hash->{helper}{DATA} = {%{$jhash}}; 
-  Log3 $name,5,"compound [$name]: Data plan restored from save file";
+  Log3 $name,3,"compound [$name]: Data plan restored from save file";
   
   readingsBeginUpdate( $hash );
   
@@ -911,8 +925,13 @@ sub compound_checkTemp($$;$) {
         
         #Log3 $name, 5, "$name: Check temperature for device $dev with temperature $temp" if (defined($temp));
         
-        my $cmd1=$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev} ne "cool"?"on":"off";
-        my $cmd2=$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev} ne "cool"?"off":"on";
+        my $cmd1 = "on";
+        my $cmd2 = "off";
+        
+        if ($hash->{helper}{DATA}{$compound}{"TYPES"}{$dev}) {
+          $cmd1=$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev} ne "cool"?"on":"off";
+          $cmd2=$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev} ne "cool"?"off":"on";
+        }
         
         my $tPlan=$hash->{helper}{DATA}{plan}{$compound}{$dev}{$month+1};
         
@@ -1166,6 +1185,8 @@ sub compound_PlanHtml(;$$$) {
   
   my $sM = $compound_month;
   
+  my @cTypes = keys %pTypes;
+  
   # refresh request? don't show everything
   if (!$refreshGet) {
     $rot .= " <script type=\"text/javascript\">
@@ -1241,8 +1262,6 @@ sub compound_PlanHtml(;$$$) {
                 </style>";
     $ret .= "<div class='compound_plan_outer_container'>\n";
   }
-  
-  my @cTypes = keys %pTypes;
                 
   foreach my $name (@devs) {    
     if (!IsDisabled($name)) {
@@ -1257,7 +1276,7 @@ sub compound_PlanHtml(;$$$) {
         my $options="";
         foreach my $pType (@cTypes) {
         
-          $pDevs{"$pType"} = $hash->{helper}{DATA}{$compound}{TYPE}{$pType} if ($hash->{helper}{DATA}{$compound}{TYPE}{$pType});
+          $pDevs{$pType} = $hash->{helper}{DATA}{$compound}{TYPE}{$pType} if ($hash->{helper}{DATA}{$compound}{TYPE}{$pType});
      
           $options .= "<option value=\"".$pDevs{$pType}."\">".$hash->{helper}{DATA}{pTypes}{$pType}{"lang"}{$lang}{"name"}."</option>\n" if ($pDevs{$pType});
         
@@ -1337,11 +1356,11 @@ sub compound_PlanHtml(;$$$) {
                     $month.
                   " </td>\n";
           foreach my $pType (@cTypes) {
-            $ret .= ($pDevs{$pType}?"  <td class=\"col1 compound_plan_light\">\n".
-                  "   <span class=\"compound_plan_light_text compound_plan_text_".$name."\" data-tid=\"".$pDevs{$pType}."_".$i."\" data-name=\"".$pDevs{$pType}."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$values{$pType}."</span>\n".
-                  "   <input type=\"text\"".($values{$pType} ne ""?" style=\"display:none;\"":"")." data-tid=\"".$pDevs{$pType}."_".$i."\" data-name=\"".$pDevs{$pType}."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_lightInput compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$values{$pType}."\" />\n".
+            $ret .= ($pDevs{$pType}?"  <td class=\"col1 compound_plan_".$pType."\">\n".
+                  "   <span class=\"compound_plan_".$pType."_text compound_plan_text_".$name."\" data-tid=\"".$pDevs{$pType}."_".$i."\" data-name=\"".$pDevs{$pType}."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\">".$values{$pType}."</span>\n".
+                  "   <input type=\"text\"".($values{$pType} ne ""?" style=\"display:none;\"":"")." data-tid=\"".$pDevs{$pType}."_".$i."\" data-name=\"".$pDevs{$pType}."\" data-no=\"".$i."\" data-id=\"".$name."_".$i."\" class=\"compound_plan_input compound_".$pType."Input compound_plan_input_".$name." compound_plan_input_".$name."_".$i."\" value=\"".$values{$pType}."\" />\n".
                   " </td>\n".
-                  " <td data-id=\"copy_light_".$name."\" class=\"col2 doDown light_down doDown_".$name."\">".
+                  " <td data-id=\"copy_".$pType."_".$name."\" class=\"col2 doDown ".$pType."_down doDown_".$name."\">".
                   ($i==1?"↓":"&nbsp;").
                   " </td>\n":"");
           }
@@ -1384,6 +1403,25 @@ sub compound_Html(;$$$) {
   my $rot="";
   
   my @cTypes = keys %pTypes;
+  
+  my %there;
+  foreach my $pType (@cTypes) {
+    $there{$pType} = "no";
+  }
+  
+  my @ldevs = devspec2array("TYPE=compound");
+  
+  foreach (@ldevs) {
+    my $tHash = $defs{$_};
+    my $compound = ReadingsVal($_,"compound","-");
+    if ($compound ne "-") {
+      foreach my $pType (@cTypes) {
+        $there{$pType} = "yes" if ($tHash->{helper}{DATA}{$compound}{TYPE}{$pType});
+      }
+    }
+  }
+  
+  #Log 1, Dumper(@cpTypes);
   
   # refresh request? don't show everything
   if (!$refreshGet) {
@@ -1448,19 +1486,19 @@ sub compound_Html(;$$$) {
             "   <th class=\"col1\">".$compound_tt->{"animals"}."</th>\n".
             "   <th class=\"col3\">".$compound_tt->{"state"}."</th>\n".
             "   <th class=\"col3\">".$compound_tt->{"place"}."</th>\n";
-    $ret .= "   <th class=\"col3\">".$compound_tt->{"light"}."</th>\n".
-            "   <th class=\"col3\">".$compound_tt->{"heating"}."</th>\n".
-            "   <th class=\"col3\">".$compound_tt->{"camera"}."</th>\n";
-#    my @ldevs = devspec2array("TYPE=compound");
-#    if (@ldevs) {
-#      if ($ldevs[0]) {
-#        my $thash = $defs{$ldevs[0]};
-#        my $lang = $thash->{helper}{DATA}{"lang"};
-#        foreach my $pType (@cTypes) {
-#          $ret .= "   <th class=\"col3\">".$thash->{helper}{DATA}{pTypes}{$pType}{"lang"}{$lang}{"name"}."</th>\n";
-#        }
-#      }
-#    }
+#    $ret .= "   <th class=\"col3\">".$compound_tt->{"light"}."</th>\n".
+#            "   <th class=\"col3\">".$compound_tt->{"heating"}."</th>\n".
+#            "   <th class=\"col3\">".$compound_tt->{"camera"}."</th>\n";
+
+    if (@ldevs) {
+      if ($ldevs[0]) {
+        my $thash = $defs{$ldevs[0]};
+        my $lang = $thash->{helper}{DATA}{"lang"};
+        foreach my $pType (@cTypes) {
+          $ret .= "   <th class=\"col3\">".$pTypes{$pType}{"lang"}{$lang}{"name"}."</th>\n" if ($there{$pType} eq "yes");
+        }
+      }
+    }
     $ret .= "   <th class=\"col3\">".$compound_tt->{"temp"}."</th>\n".
             "   <th class=\"col3\">".$compound_tt->{"hum"}."</th>\n".
             " </tr>".
@@ -1490,42 +1528,27 @@ sub compound_Html(;$$$) {
       
       my $state = ReadingsVal($name,"state","inactive");
       my $stateIcon = FW_makeImage($state eq "active"?"rc_GREEN":"rc_RED", $state);
-      my $lightState = "-";
-      my $heatState = "-";
-      my $camState = "-";
-      my $coolState = "-";
-      my $stateL = "-";
-      my $stateH = "-";
-      my $stateCam = "-";
-      my $stateF = "-";
-      my $lightDevice = "-";
-      my $heatDevice = "-";
-      my $camDevice = "-";
-      my $coolDevice = "-";
-      if ($hash->{helper}{DATA}{$compound}{TYPE}{"light"}) {
-        $lightDevice = $hash->{helper}{DATA}{$compound}{TYPE}{"light"};
-        $lightState = ReadingsVal($name,$lightDevice."_state","off");
-        $stateL = $lightState eq "on"?"off":"on";
-        $lightState = FW_makeImage($lightState eq "on"?"light_light_dim_100\@yellow":"light_light_dim_00\@grey", ReadingsVal($name,$hash->{helper}{DATA}{$compound}{TYPE}{"light"}."_state","off"));
+      
+      my %state;
+      my %newState;
+      my %device;
+      
+      foreach my $pType (@cTypes) {
+      
+        if ($hash->{helper}{DATA}{$compound}{TYPE}{$pType}) {
+          $device{$pType} = $hash->{helper}{DATA}{$compound}{TYPE}{$pType};
+          $state{$pType} = ReadingsVal($name,$device{$pType}."_state","off");
+          $newState{$pType} = $state{$pType} eq "on"?"off":"on";
+          $state{$pType} = FW_makeImage($state{$pType} eq "on"?$pTypes{$pType}{"icons"}{"on"}:$pTypes{$pType}{"icons"}{"off"}, ReadingsVal($name,$hash->{helper}{DATA}{$compound}{TYPE}{$pType}."_state","off"));
+        }
+        else {
+          $device{$pType} = "-";
+          $state{$pType} = "-";
+          $newState{$pType} = "-";
+        }
+        
       }
-      if ($hash->{helper}{DATA}{$compound}{TYPE}{"heat"}) {
-        $heatDevice = $hash->{helper}{DATA}{$compound}{TYPE}{"heat"};
-        $heatState = ReadingsVal($name,$heatDevice."_state","off");
-        $stateH = $heatState eq "on"?"off":"on";
-        $heatState = FW_makeImage($heatState eq "on"?"sani_heating\@red":"sani_heating\@grey", ReadingsVal($name,$hash->{helper}{DATA}{$compound}{TYPE}{"heat"}."_state","off"));
-      }
-      if ($hash->{helper}{DATA}{$compound}{TYPE}{"camera"}) {
-        $camDevice = $hash->{helper}{DATA}{$compound}{TYPE}{"camera"};
-        $camState = ReadingsVal($name,$camDevice."_state","off");
-        $stateCam = $camState eq "on"?"off":"on";
-        $camState = FW_makeImage($camState eq "on"?"it_camera\@#FF9900":"it_camera\@grey", ReadingsVal($name,$hash->{helper}{DATA}{$compound}{TYPE}{"camera"}."_state","off"));
-      }
-      if ($hash->{helper}{DATA}{$compound}{TYPE}{"cool"}) {
-        $coolDevice = $hash->{helper}{DATA}{$compound}{TYPE}{"cool"};
-        $coolState = ReadingsVal($name,$coolDevice."_state","off");
-        $stateF = $coolState eq "on"?"off":"on";
-        $coolState = FW_makeImage($coolState eq "on"?"weather_frost\@#FF9900":"weather_frost\@grey", ReadingsVal($name,$hash->{helper}{DATA}{$compound}{TYPE}{"cool"}."_state","off"));
-      }
+
       my $stateC = $state eq "active"?"inactive":"active";
       
       my @compounds = @{$hash->{COMPOUNDS}};
@@ -1543,7 +1566,6 @@ sub compound_Html(;$$$) {
       $ret .= "<tr id=\"compound_row_".$name."\" data-data=\"true\" data-line-id=\"".$name."\" class=\"sortit compound_data ".$eo."\">\n".
               " <td class=\"col1 compound_col1\">\n".
               " <input type=\"hidden\" class=\"compound_name\" id=\"compound_name_".$name."\" value=\"".$name."\" />\n".
-              #"    <div class=\"compound_move\"></div>\n".
               "   <span>".(!$FW_hiddenroom{detail}?"<a title=\"\" href=\"/fhem?detail=".$name."\">":"").
                       AttrVal($name,"alias",$name).
                     (!$FW_hiddenroom{detail}?"</a>":"")."</span>\n".
@@ -1557,23 +1579,25 @@ sub compound_Html(;$$$) {
               "   <span class=\"compound_span compound_compound_span compound_compound_span_".$name."\" data-id=\"".$name."\">\n".
               "     <select id=\"compound_compound_".$name."\" name=\"compound_compound_".$name."\">".$options."</select>\n".
               "   </span>\n".
-              " </td>\n".
-              " <td class=\"col2 compound_light".($lightState ne "-"?" compound_switch compound_switch_".$name:"")."\">\n".
-              "   <span class=\"compound_span compound_light_span\" data-device=\"".$lightDevice."\" data-do=\"".$stateL."\" data-id=\"".$name."\">".
-                    $lightState.
+              " </td>\n";
+      foreach my $pType (@cTypes) {
+        $ret.=" <td class=\"col2 compound_light".($state{$pType} ne "-"?" compound_switch compound_switch_".$name:"")."\">\n".
+              "   <span class=\"compound_span compound_light_span\" data-device=\"".$device{$pType}."\" data-do=\"".$newState{$pType}."\" data-id=\"".$name."\">".
+                    $state{$pType}.
               "   </span>\n".
-              " </td>\n".
-              " <td class=\"col2 compound_heat".($heatState ne "-"?" compound_switch compound_switch_".$name:"")."\">\n".
-              "   <span class=\"compound_span compound_heat_span\" data-device=\"".$heatDevice."\" data-do=\"".$stateH."\" data-id=\"".$name."\">".
-                    $heatState.
-              "   </span>\n".
-              " </td>\n".
-              " <td class=\"col2 compound_cam".($camState ne "-"?" compound_switch compound_switch_".$name:"")."\">\n".
-              "   <span class=\"compound_span compound_cam_span\" data-device=\"".$camDevice."\" data-do=\"".$stateCam."\" data-id=\"".$name."\">".
-                    $camState.
-              "   </span>\n".
-              " </td>\n".
-              " <td class=\"col2 compound_temp\">\n".
+              " </td>\n" if ($there{$pType} eq "yes");
+      }
+#              " <td class=\"col2 compound_heat".($heatState ne "-"?" compound_switch compound_switch_".$name:"")."\">\n".
+#              "   <span class=\"compound_span compound_heat_span\" data-device=\"".$heatDevice."\" data-do=\"".$stateH."\" data-id=\"".$name."\">".
+#                    $heatState.
+#              "   </span>\n".
+#              " </td>\n".
+#              " <td class=\"col2 compound_cam".($camState ne "-"?" compound_switch compound_switch_".$name:"")."\">\n".
+#              "   <span class=\"compound_span compound_cam_span\" data-device=\"".$camDevice."\" data-do=\"".$stateCam."\" data-id=\"".$name."\">".
+#                    $camState.
+#              "   </span>\n".
+#              " </td>\n".
+      $ret .= " <td class=\"col2 compound_temp\">\n".
               "   <span class=\"compound_span compound_temp_span\" data-id=\"".$name."\">".
                     ReadingsNum($name,$hash->{helper}{DATA}{$compound}{tempDevice}."_temperature",0)."°C".
               "   </span>\n".
@@ -1582,8 +1606,8 @@ sub compound_Html(;$$$) {
               "   <span class=\"compound_span compound_hum_span\" data-id=\"".$name."\">".
                     ReadingsNum($name,$hash->{helper}{DATA}{$compound}{tempDevice}."_humidity",0)."%".
               "   </span>\n".
-              " </td>\n".
-              "</tr>\n";
+              " </td>\n";
+      $ret .=  "</tr>\n";
               
       $i++;
     }
