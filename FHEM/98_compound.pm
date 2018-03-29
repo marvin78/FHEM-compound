@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.93";
+my $version = "0.9.95";
 
 my %pTypes;
 
@@ -370,7 +370,7 @@ sub compound_Notify($$) {
         $dReading = "-";
         $dReading = "temperature" if (grep(m/^temperature.*$/, $event));
         $dReading = "humidity" if (grep(m/^humidity.*$/, $event));
-        if ($tDev eq $devName) {
+        if ($tDev && $tDev eq $devName) {
           if (grep(m/^temperature.*$/, $event) || grep(m/^temperature.*$/, $event)) {
             readingsSingleUpdate($hash,$devName."_$dReading",$e[1],1);
             compound_checkTemp($hash,$name,$e[1]) if ($hash->{helper}{DATA}{"devices"}{$devName}=$compound && $dReading eq "temperature" && $init_done && $manu ne "on");
@@ -1599,15 +1599,15 @@ sub compound_Html(;$$$) {
 #              " </td>\n".
       $ret .= " <td class=\"col2 compound_temp\">\n".
               "   <span class=\"compound_span compound_temp_span\" data-id=\"".$name."\">".
-                    ReadingsNum($name,$hash->{helper}{DATA}{$compound}{tempDevice}."_temperature",0)."°C".
+                    ($hash->{helper}{DATA}{$compound}{tempDevice}?ReadingsNum($name,$hash->{helper}{DATA}{$compound}{tempDevice}."_temperature",0)."°C":"-").
               "   </span>\n".
               " </td>\n".
               " <td class=\"col2 compound_hum\">\n".
               "   <span class=\"compound_span compound_hum_span\" data-id=\"".$name."\">".
-                    ReadingsNum($name,$hash->{helper}{DATA}{$compound}{tempDevice}."_humidity",0)."%".
+                    ($hash->{helper}{DATA}{$compound}{tempDevice}?ReadingsNum($name,$hash->{helper}{DATA}{$compound}{tempDevice}."_humidity",0)."%":"-").
               "   </span>\n".
               " </td>\n";
-      $ret .=  "</tr>\n";
+      $ret .= "</tr>\n";
               
       $i++;
     }
