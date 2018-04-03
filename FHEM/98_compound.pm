@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.96";
+my $version = "0.9.97";
 
 my %pTypes;
 
@@ -270,13 +270,12 @@ sub compound_Define($$) {
     compound_SetPlan($hash);
     $hash->{NOTIFYDEV} = "global,".join(",",@{$hash->{helper}{DATA}{$co}{"compDevices"}}) if ($co ne "-" && defined($hash->{helper}{DATA}{$co}{"compDevices"}));
     Log3 $name, 5, "$name: added NotifyDev $hash->{NOTIFYDEV} to Device";
+    $hash->{helper}{DATA}{"lang"} = AttrVal($name,"language", AttrVal("global","language","EN"));
   }
   
   $hash->{INTERVAL}=AttrVal($name,"interval",undef)?AttrVal($name,"interval",undef):300;
   
   $hash->{VERSION}=$version;
-  
-  $hash->{helper}{DATA}{"lang"} = AttrVal($name,"language", AttrVal("global","language","EN"));
   
   compound_RestartGetTimer($hash);
   
@@ -352,6 +351,7 @@ sub compound_Notify($$) {
     }
     compound_SetDeviceTypes($hash);
     compound_SetPlan($hash);
+    $hash->{helper}{DATA}{"lang"} = AttrVal($name,"language", AttrVal("global","language","EN"));
   }
   else {
     if ($state eq "active" && $compound ne "-") {
