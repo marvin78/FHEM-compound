@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "0.9.97";
+my $version = "1.0.0";
 
 my %pTypes;
 
@@ -65,6 +65,8 @@ my %compound_transtable_EN = (
   "save"              =>  "Save",
   "restore"           =>  "Restore",
   "restoreconfirm"    =>  "Are you sure? This overwrites current plans.",
+  "desiredLight"      =>  "dT light",
+  "desiredHeat"       =>  "SdT heat",
 );
 
 my %compound_transtable_DE = ( 
@@ -86,6 +88,8 @@ my %compound_transtable_DE = (
   "save"              =>  "Speichern",
   "restore"           =>  "Wiederherstellen",
   "restoreconfirm"    =>  "Wirklich alle Pläne wiederherstellen?",
+  "desiredLight"      =>  "Soll Licht",
+  "desiredHeat"       =>  "Soll Heiz.",
 );
 
 my %compound_month_EN = ( 
@@ -230,6 +234,7 @@ sub compound_Define($$) {
         push @{$hash->{helper}{DATA}{$compound}{"compDevices"}},$dev;
         push @tdevices, $dev;
         readingsSingleUpdate($hash,$dev."_temperature",ReadingsVal($dev,"temperature","---"),1) if ($co ne "-" && $co eq $p[0]);
+        readingsSingleUpdate($hash,$dev."_humidity",ReadingsVal($dev,"humidity","---"),1) if ($co ne "-" && $co eq $p[0]);
       }
       if ($r>1) {
         $i++;
@@ -270,6 +275,9 @@ sub compound_Define($$) {
     compound_SetPlan($hash);
     $hash->{NOTIFYDEV} = "global,".join(",",@{$hash->{helper}{DATA}{$co}{"compDevices"}}) if ($co ne "-" && defined($hash->{helper}{DATA}{$co}{"compDevices"}));
     Log3 $name, 5, "$name: added NotifyDev $hash->{NOTIFYDEV} to Device";
+    $hash->{helper}{DATA}{"lang"} = AttrVal($name,"language", AttrVal("global","language","EN"));
+  }
+  else {
     $hash->{helper}{DATA}{"lang"} = AttrVal($name,"language", AttrVal("global","language","EN"));
   }
   
@@ -371,7 +379,7 @@ sub compound_Notify($$) {
         $dReading = "temperature" if (grep(m/^temperature.*$/, $event));
         $dReading = "humidity" if (grep(m/^humidity.*$/, $event));
         if ($tDev && $tDev eq $devName) {
-          if (grep(m/^temperature.*$/, $event) || grep(m/^temperature.*$/, $event)) {
+          if (grep(m/^temperature.*$/, $event) || grep(m/^humidity.*$/, $event)) {
             readingsSingleUpdate($hash,$devName."_$dReading",$e[1],1);
             compound_checkTemp($hash,$name,$e[1]) if ($hash->{helper}{DATA}{"devices"}{$devName}=$compound && $dReading eq "temperature" && $init_done && $manu ne "on");
           }
@@ -933,7 +941,7 @@ sub compound_checkTemp($$;$) {
           $cmd2=$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev} ne "cool"?"off":"on";
         }
         
-        my $tPlan=$hash->{helper}{DATA}{plan}{$compound}{$dev}{$month+1};
+        my $tPlan=defined($hash->{helper}{DATA}{plan}{$compound}{$dev}{$month+1})?$hash->{helper}{DATA}{plan}{$compound}{$dev}{$month+1}:"-";
         
         if ($tPlan ne "-") {
           my @plans = split(/ /, $tPlan );
@@ -942,6 +950,10 @@ sub compound_checkTemp($$;$) {
             my @oldTime=(0,0,0);
             foreach my $plan (@plans) {
               my @d = split(/\|/,$plan);
+              if (!defined($d[1])) {
+                $d[1] = 1000;
+              }
+              
               #Log3 $name, 5, "$name:$d[0],$d[1]";
               my @planTime = split(":",$d[0]);
               @planTime=(23,59,59) if ($planTime[0]==24);
@@ -966,14 +978,12 @@ sub compound_checkTemp($$;$) {
               Log3 $name, 5, "$name: Check temperature for device $dev ($plan) with new temperature $temp and $time and ".$d[0]." and ".$d[1]." and $refTime and $aPlanTime" if (defined($temp));
               
               if ($time>$refTime && $time<$aPlanTime) {
+                
+                  readingsSingleUpdate($hash,"desired_temp_".$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev},$d[1],1);
                   
                   Log3 $name, 5, "$name: Check temperature for device $dev and tempDevice $tempDev with given temperature $temp and $d[1] and $refTime and $aPlanTime" if (defined($temp));
                   
                   my $manu=ReadingsVal($name,$dev."_manu","off");
-                  
-                  if (!defined($d[1])) {
-                    $d[1] = 1000;
-                  }
                   
                   if ($d[1] ne "-" && $dev) {
                     Log3 $name, 5, "$name: DEBUG: $dev";
@@ -1268,7 +1278,7 @@ sub compound_PlanHtml(;$$$) {
       my $hash = $defs{$name};  
       my $compound=ReadingsVal($name,"compound","-");
       
-      my $lang = $hash->{helper}{DATA}{"lang"};
+      my $lang = defined($hash->{helper}{DATA}{"lang"})?$hash->{helper}{DATA}{"lang"}:"EN";
       
       if ($compound ne "-") {     
         my %pDevs;
@@ -1493,13 +1503,15 @@ sub compound_Html(;$$$) {
     if (@ldevs) {
       if ($ldevs[0]) {
         my $thash = $defs{$ldevs[0]};
-        my $lang = $thash->{helper}{DATA}{"lang"};
+        my $lang = defined($thash->{helper}{DATA}{"lang"})?$thash->{helper}{DATA}{"lang"}:"EN";
         foreach my $pType (@cTypes) {
           $ret .= "   <th class=\"col3\">".$pTypes{$pType}{"lang"}{$lang}{"name"}."</th>\n" if ($there{$pType} eq "yes");
         }
       }
     }
     $ret .= "   <th class=\"col3\">".$compound_tt->{"temp"}."</th>\n".
+            "   <th class=\"col3\">".$compound_tt->{"desiredLight"}."</th>\n".
+            "   <th class=\"col3\">".$compound_tt->{"desiredHeat"}."</th>\n".
             "   <th class=\"col3\">".$compound_tt->{"hum"}."</th>\n".
             " </tr>".
             "</thead>\n";
@@ -1600,6 +1612,17 @@ sub compound_Html(;$$$) {
       $ret .= " <td class=\"col2 compound_temp\">\n".
               "   <span class=\"compound_span compound_temp_span\" data-id=\"".$name."\">".
                     ($hash->{helper}{DATA}{$compound}{tempDevice}?ReadingsNum($name,$hash->{helper}{DATA}{$compound}{tempDevice}."_temperature",0)."°C":"-").
+              "   </span>\n".
+              " </td>\n".
+              " </td>\n".
+              " <td class=\"col2 compound_desired_temp_light\">\n".
+              "   <span class=\"compound_span compound_desired_temp_light_span\" data-id=\"".$name."\">".
+                    (ReadingsVal($name,"desired_temp_light","-") ne "-"?ReadingsNum($name,"desired_temp_light","-")."°C":"-").
+              "   </span>\n".
+              " </td>\n".
+              " <td class=\"col2 compound_desired_temp_heat\">\n".
+              "   <span class=\"compound_span compound_desired_temp_heat_span\" data-id=\"".$name."\">".
+                    (ReadingsVal($name,"desired_temp_heat","-") ne "-"?ReadingsNum($name,"desired_temp_heat","-")."°C":"-").
               "   </span>\n".
               " </td>\n".
               " <td class=\"col2 compound_hum\">\n".
