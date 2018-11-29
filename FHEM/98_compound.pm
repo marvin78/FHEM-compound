@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "1.0.0";
+my $version = "1.0.2";
 
 my %pTypes;
 
@@ -285,7 +285,7 @@ sub compound_Define($$) {
   
   $hash->{VERSION}=$version;
   
-  compound_RestartGetTimer($hash);
+  compound_RestartGetTimer($hash) if (!IsDisabled($name));
   
   return undef;
 }
@@ -771,7 +771,7 @@ sub compound_Restore($) {
 sub compound_setOn($$@) {
     my ($hash,$name,$devH,@args) = @_;
   
-    my @fDev=split(/_/,$devH);
+    my @fDev=split(/_([^_]+)$/, $devH);
     
     my $dev=$fDev[0];
     
@@ -790,10 +790,16 @@ sub compound_setOn($$@) {
       CommandDeleteReading(undef, "$hash->{NAME} $dev");
     }
     
+    Log3 $name,5, "compound [$name]: $dev checkDev = $checkDev";
+    
     return undef if ($checkDev==0);
+    
+    
     
     # get command
     my $cmd=$args[0];
+    
+    Log3 $name,4, "compound [$name]: Command to send $dev $cmd";
     
     # get additional parameter if on-till or on-for-timer
     my $param= $args[1] if ($cmd eq "on-for-timer" || $cmd eq "on-till");
@@ -811,6 +817,8 @@ sub compound_setOn($$@) {
     $dHash->{hash}=$hash;
     $dHash->{dev}=$dev;   
     $dHash->{cmd}=$cmd1;
+    
+    Log3 $name,4, "compound [$name]: Command sent $dev $cmd1";
     
     RemoveInternalTimer($dev);
     RemoveInternalTimer($hash);
@@ -846,7 +854,7 @@ sub compound_doSetOn ($) {
   my $hash=$dHash->{hash};
   my $dev=$dHash->{dev};
   my $cmd=$dHash->{cmd};
-  CommandSet(undef,"$dev:FILTER=STATE!=$cmd $cmd");
+  CommandSet(undef,"$dev $cmd");
   
   return undef;
 }
@@ -857,7 +865,7 @@ sub compound_setOff($$;$) {
   
   $auto = 0 if (!defined($auto));
   
-  my @fDev=split(/_/,$dev);
+  my @fDev=split(/_([^_]+)$/, $dev);
     
   $dev=$fDev[0];
   
@@ -895,9 +903,9 @@ sub compound_doCheckTemp($) {
   
   RemoveInternalTimer($hash);
     
-  InternalTimer(gettimeofday()+$interval, "compound_doCheckTemp", $hash, 0);
+  InternalTimer(gettimeofday()+$interval, "compound_doCheckTemp", $hash, 0) if (!IsDisabled($name));
   
-  compound_checkTemp($hash,$name);
+  compound_checkTemp($hash,$name) if (!IsDisabled($name));
   
   Log3 $name, 5, "$name: doCheckTemp";
   
