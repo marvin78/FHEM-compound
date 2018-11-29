@@ -219,7 +219,9 @@
               var no = $(this).attr('data-no');
               var arrno = no-1;
               var val = $(this).val();
-              if (val!="-" && val!="") arr[arrno] = no + " " + val;
+              if (val == "") val = "-"; 
+              //if (val!="-" && val!="") 
+              arr[arrno] = no + " " + val;
             });
             $(this).hide();
             $("span.compound_plan_text_" + name +"[data-tid='" + tid +"']").html(tVal);

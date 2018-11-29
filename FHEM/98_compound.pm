@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "1.0.2";
+my $version = "1.0.3";
 
 my %pTypes;
 
@@ -148,6 +148,12 @@ sub compound_Initialize($) {
                           "language:EN,DE ".
                           $readingFnAttributes;
                           
+  ## renew version in reload
+  foreach my $d ( sort keys %{ $modules{compound}{defptr} } ) {
+      my $hash = $modules{compound}{defptr}{$d};
+      $hash->{VERSION} = $version;
+  }
+                          
   if( !defined($compound_tt) ){
     my @devs = devspec2array("TYPE=compound");
     if (@devs) {   
@@ -284,6 +290,8 @@ sub compound_Define($$) {
   $hash->{INTERVAL}=AttrVal($name,"interval",undef)?AttrVal($name,"interval",undef):300;
   
   $hash->{VERSION}=$version;
+  
+  $hash->{MID}     = 'da39a3ee5e634fdss434aef433457bdbfef95601890afd80709'; # 
   
   compound_RestartGetTimer($hash) if (!IsDisabled($name));
   
@@ -628,7 +636,7 @@ sub compound_SetPlan($;$) {
           my @mon = split(/ /,$line,2);
           Log3 $name, 4, "compound [$name]: Mon Dumper: ".Dumper(@mon);
           $line =~ s/^\s+|\s+$//g;
-          if ($line =~ /^(0?[1-9]|1[012])(\ (([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?|(24:00(:00)?))\|(-|-?\d+))+$/ || $line =~ /^(0?[1-9]|1[012])\ \-$/) {
+          if ($line =~ /^(0?[1-9]|1[012])(\ (([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?|(24:00(:00)?))\|(-|-?\d+|on))+$/ || $line =~ /^(0?[1-9]|1[012])\ \-$/) {
             $planArr[int($mon[0])] = $mon[1] if ($mon[0]=~/^\d+$/);
             Log3 $name, 4, "compound [$name]: Mon Dumper $mon[0]: ".Dumper($planArr[int($mon[0])]);
           }
@@ -683,7 +691,8 @@ sub compound_SetPlan($;$) {
     compound_RestartGetTimer($hash);
     
   }
-  compound_ReloadPlan($name);
+  #compound_ReloadPlan($name);
+  InternalTimer(gettimeofday()+2, "compound_ReloadPlan", $name, 0);
   
   return undef;
 }
@@ -958,7 +967,7 @@ sub compound_checkTemp($$;$) {
             my @oldTime=(0,0,0);
             foreach my $plan (@plans) {
               my @d = split(/\|/,$plan);
-              if (!defined($d[1])) {
+              if (!defined($d[1]) || $d[1] eq "on") {
                 $d[1] = 1000;
               }
               
@@ -987,7 +996,9 @@ sub compound_checkTemp($$;$) {
               
               if ($time>$refTime && $time<$aPlanTime) {
                 
-                  readingsSingleUpdate($hash,"desired_temp_".$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev},$d[1],1);
+                  my $desired = $d[1]==1000?"on":$d[1];
+                
+                  readingsSingleUpdate($hash,"desired_temp_".$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev},$desired,1);
                   
                   Log3 $name, 5, "$name: Check temperature for device $dev and tempDevice $tempDev with given temperature $temp and $d[1] and $refTime and $aPlanTime" if (defined($temp));
                   
@@ -1625,12 +1636,12 @@ sub compound_Html(;$$$) {
               " </td>\n".
               " <td class=\"col2 compound_desired_temp_light\">\n".
               "   <span class=\"compound_span compound_desired_temp_light_span\" data-id=\"".$name."\">".
-                    (ReadingsVal($name,"desired_temp_light","-") ne "-"?ReadingsNum($name,"desired_temp_light","-")."°C":"-").
+                    (ReadingsVal($name,"desired_temp_light","-") ne "-"&&ReadingsVal($name,"desired_temp_light","-") ne "on"?ReadingsNum($name,"desired_temp_light","-")."°C":"-").
               "   </span>\n".
               " </td>\n".
               " <td class=\"col2 compound_desired_temp_heat\">\n".
               "   <span class=\"compound_span compound_desired_temp_heat_span\" data-id=\"".$name."\">".
-                    (ReadingsVal($name,"desired_temp_heat","-") ne "-"?ReadingsNum($name,"desired_temp_heat","-")."°C":"-").
+                    (ReadingsVal($name,"desired_temp_heat","-") ne "-"&&ReadingsVal($name,"desired_temp_heat","-") ne "on"?ReadingsNum($name,"desired_temp_heat","-")."°C":"-").
               "   </span>\n".
               " </td>\n".
               " <td class=\"col2 compound_hum\">\n".
