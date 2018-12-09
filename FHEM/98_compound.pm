@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "1.0.3";
+my $version = "1.0.3.1";
 
 my %pTypes;
 
@@ -996,7 +996,7 @@ sub compound_checkTemp($$;$) {
               
               if ($time>$refTime && $time<$aPlanTime) {
                 
-                  my $desired = $d[1]==1000?"on":$d[1];
+                  my $desired = $d[1] == 1000?"on":$d[1] if ($d[1] ne "-");
                 
                   readingsSingleUpdate($hash,"desired_temp_".$hash->{helper}{DATA}{$compound}{"TYPES"}{$dev},$desired,1);
                   
