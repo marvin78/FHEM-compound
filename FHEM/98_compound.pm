@@ -10,7 +10,7 @@ use JSON;
 
 #######################
 # Global variables
-my $version = "1.0.3.1";
+my $version = "1.0.6";
 
 my %pTypes;
 
@@ -214,7 +214,7 @@ sub compound_Define($$) {
   my $v=0;
   
   delete($hash->{helper}{DATA});
-  CommandDeleteReading(undef, "$hash->{NAME} .*_(state|temperature|humidity)");
+  CommandDeleteReading(undef, "$hash->{NAME} .*_(state|temperature|humidity|plan)");
   
   my $cs="";
   
@@ -292,8 +292,30 @@ sub compound_Define($$) {
   $hash->{VERSION}=$version;
   
   $hash->{MID}     = 'da39a3ee5e634fdss434aef433457bdbfef95601890afd80709'; # 
+  $modules{compound}{defptr}{ $hash->{MID} } = $hash; #MID for internal purposes
   
   compound_RestartGetTimer($hash) if (!IsDisabled($name));
+  
+  return undef;
+}
+
+sub compound_getStatus($) {
+  my ($hash) = @_;
+  
+  my $name = $hash->{NAME};
+  
+  if (defined($hash->{"DEVICES"})) {
+    my @devs=@{$hash->{"DEVICES"}};
+  
+    foreach my $dev (@devs) {
+       my $dStateType=$hash->{helper}{DATA}{"DEVREADINGS"}{$dev}?$hash->{helper}{DATA}{"DEVREADINGS"}{$dev}:"state";
+       readingsSingleUpdate($hash,$dev."_state",ReadingsVal($dev,$dStateType,"---"),1);
+       
+       Log3 $name, 4, "$name: got state ($dStateType) from device $dev: ".ReadingsVal($dev,$dStateType,"---");
+       
+    }
+     
+  }
   
   return undef;
 }
@@ -344,9 +366,9 @@ sub compound_Notify($$) {
   
   my $state = ReadingsVal($name,"state","inactive");
   
-  return undef if ($state ne "active"); 
+  #return undef if ($state ne "active"); 
   
-  return if( AttrVal($name,"disable", 0) > 0 );
+ # return if( AttrVal($name,"disable", 0) > 0 );
   
   return if($dev->{TYPE} eq $hash->{TYPE});
   
@@ -367,10 +389,11 @@ sub compound_Notify($$) {
     }
     compound_SetDeviceTypes($hash);
     compound_SetPlan($hash);
+    compound_getStatus($hash);
     $hash->{helper}{DATA}{"lang"} = AttrVal($name,"language", AttrVal("global","language","EN"));
   }
   else {
-    if ($state eq "active" && $compound ne "-") {
+    #if ($state eq "active" && $compound ne "-") {
       Log3 $name,5, $name."Notify: ".$devName;
       my $tDev=$hash->{helper}{DATA}{$compound}{"tempDevice"};
       my @devs;
@@ -389,24 +412,27 @@ sub compound_Notify($$) {
         if ($tDev && $tDev eq $devName) {
           if (grep(m/^temperature.*$/, $event) || grep(m/^humidity.*$/, $event)) {
             readingsSingleUpdate($hash,$devName."_$dReading",$e[1],1);
-            compound_checkTemp($hash,$name,$e[1]) if ($hash->{helper}{DATA}{"devices"}{$devName}=$compound && $dReading eq "temperature" && $init_done && $manu ne "on");
+            compound_checkTemp($hash,$name,$e[1]) if ($hash->{helper}{DATA}{"devices"}{$devName}=$compound && $dReading eq "temperature" && $init_done && $manu ne "on" && $state eq "active" && $compound ne "-");
           }
           $doTable=1;
         }
         if (compound_inArray(\@devs,$devName)) {
           my $devStateType=$hash->{helper}{DATA}{"DEVREADINGS"}{$devName};
           readingsSingleUpdate($hash,$devName."_state",$e[1],1) if (grep(m/^$devStateType.*$/, $event));
-          RemoveInternalTimer($hash);
-        
-          my $interval=$hash->{INTERVAL}?$hash->{INTERVAL}:300;
-    
-          InternalTimer(gettimeofday()+$interval, "compound_doCheckTemp", $hash, 0) if ($manu ne "on");
-          $doTable=1;
+          if ($state eq "active" && $compound ne "-") {
+            RemoveInternalTimer($hash);
+          
+            my $interval=$hash->{INTERVAL}?$hash->{INTERVAL}:300;
+      
+            InternalTimer(gettimeofday()+$interval, "compound_doCheckTemp", $hash, 0) if ($manu ne "on");
+          
+            $doTable=1;
+          }
         }
         #Log3 $name,5,"$name: got $dReading $e[1] from $devName in NotifyFn";
         #Log3 $name,4,"$name: set reading ".$devName."_$dReading to $e[1] in NotifyFn";
       }
-    }
+    #}
   }
   
   if ($doTable == 1) {
@@ -500,8 +526,11 @@ sub compound_Get($@) {
     $ret = ReadingsVal($name,$dev."_plan","-");
     Log3 $name, 4, "compound [$name]: got plan for ".$dev;
   }
+  elsif ( $cmd eq "status") {
+    compound_getStatus($hash);
+  }
   else {
-    $ret = "$name get with unknown argument $cmd, choose one of version:noArg".$retDev;
+    $ret = "$name get with unknown argument $cmd, choose one of version:noArg status:noArg ".$retDev;
   }
  
   return $ret;
@@ -550,9 +579,11 @@ sub compound_Set($@)
     Log3 $name, 4, "$name: set cmd:$cmd".(defined($args[0])?" arg1:$args[0]":"").(defined($args[1])?" arg2:$args[1]":"");
     return "[$name] Invalid argument to set $cmd, has to be one of $compounds" if ( $cmd =~ /^compound?$/ && !compound_inArray(\@aCompounds,$args[0]) );
     if ( $cmd =~ /^compound?$/ ) {     
+      compound_SetAllOff($hash,$compound); 
       compound_setCompound($hash,$name,$args[0]);
     }
     elsif ( $cmd =~ /^(active|inactive)?$/ ) {   
+      compound_SetAllOff($hash,$compound) if ($cmd eq "inactive");
       readingsSingleUpdate($hash,"state",$cmd,1);
       RemoveInternalTimer($hash) if ($cmd eq "inactive");
       compound_setCompound($hash,$name,$compound) if ($cmd eq "active");
@@ -603,6 +634,17 @@ sub compound_Set($@)
   else {
     my $str =  join(",",(1..(2-1)));
     return "[$name] Unknown argument " . $cmd . ", choose one of compound:$str";
+  }
+  return undef;
+}
+
+# all devices off
+sub compound_SetAllOff($$) {
+  my ($hash,$compound) = @_;
+  my @devs = @{$hash->{helper}{DATA}{$compound}{devices}};
+  foreach my $dev (@devs) {
+    CommandSet(undef,"$dev:FILTER=STATE!=off off");
+    InternalTimer(gettimeofday()+2, "compound_getStatus", $hash, 0);
   }
   return undef;
 }
